@@ -44,9 +44,10 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
 
   BANK_FEED_DRIVER: z.enum(['none', 'truelayer']).default('none'),
+  TRUELAYER_ENV: z.enum(['sandbox', 'live']).default('sandbox'),
   TRUELAYER_CLIENT_ID: z.string().optional(),
   TRUELAYER_CLIENT_SECRET: z.string().optional(),
-  TRUELAYER_REDIRECT_URI: z.string().optional(),
+  TRUELAYER_REDIRECT_URI: z.string().url().optional(),
 
   XERO_CLIENT_ID: z.string().optional(),
   XERO_CLIENT_SECRET: z.string().optional(),
