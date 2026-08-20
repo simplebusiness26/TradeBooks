@@ -5,6 +5,7 @@ export * from './core';
 export * from './sales';
 export * from './purchases';
 export * from './banking';
+export * from './bank-feed';
 export * from './documents';
 export * from './automation';
 export * from './periods';
