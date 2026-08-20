@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { formatMoney } from '@/lib/money';
 import { requirePermission } from '@/lib/auth-context';
 import { documents, exceptions, invoices, transactions } from '@/db/schema';
 import { trialBalance } from '@/domain/exports';
@@ -63,7 +64,7 @@ export default async function ReviewPage() {
 
       {!balance.balanced ? (
         <Notice tone="bad" title="The internal journal does not balance">
-          Debits {money(balance.totalDebitPence)} against credits {money(balance.totalCreditPence)}. This should
+          Debits {formatMoney(balance.totalDebitPence)} against credits {formatMoney(balance.totalCreditPence)}. This should
           never happen — please report it before relying on any figure.
         </Notice>
       ) : null}
@@ -119,7 +120,7 @@ export default async function ReviewPage() {
                 balance.balanced ? (
                   <Badge tone="good">Balanced</Badge>
                 ) : (
-                  <Badge tone="bad">Out by {money(balance.totalDebitPence - balance.totalCreditPence)}</Badge>
+                  <Badge tone="bad">Out by {formatMoney(balance.totalDebitPence - balance.totalCreditPence)}</Badge>
                 )
               }
             />
@@ -154,6 +155,3 @@ export default async function ReviewPage() {
   );
 }
 
-function money(pence: number): string {
-  return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/db/client';
+import { formatMoney } from '@/lib/money';
 import { requireAuth } from '@/lib/auth-context';
 import { buildDashboard } from '@/domain/dashboard';
 import { formatDate, relativeDays, todayIso } from '@/lib/dates';
@@ -111,7 +112,7 @@ export default async function HomePage() {
             {summary.owedToYou.overdueCount > 0 ? (
               <p className="mt-3">
                 <Badge tone="bad">
-                  {summary.owedToYou.overdueCount} overdue · {formatPence(summary.owedToYou.overduePence)}
+                  {summary.owedToYou.overdueCount} overdue · {formatMoney(summary.owedToYou.overduePence)}
                 </Badge>
               </p>
             ) : summary.owedToYou.count > 0 ? (
@@ -225,6 +226,3 @@ function greeting(): string {
   return 'Evening';
 }
 
-function formatPence(pence: number): string {
-  return `£${(Math.abs(pence) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}

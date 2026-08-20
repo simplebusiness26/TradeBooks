@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { and, eq, desc } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { formatMoney } from '@/lib/money';
 import { requireAuth } from '@/lib/auth-context';
 import { bills, documents, invoices, suppliers, transactions } from '@/db/schema';
 import { calculateJobProfitability, formatMarginPercent } from '@/domain/jobs';
@@ -68,7 +69,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         />
         <p className="mt-1 text-sm text-ink-500">
           {formatMarginPercent(profit.marginBasisPoints)} margin
-          {profit.quotedRevenuePence > 0 ? ` · quoted ${money(profit.quotedRevenuePence)}` : ''}
+          {profit.quotedRevenuePence > 0 ? ` · quoted ${formatMoney(profit.quotedRevenuePence)}` : ''}
         </p>
 
         <dl className="mt-4">
@@ -195,6 +196,3 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   );
 }
 
-function money(pence: number): string {
-  return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}

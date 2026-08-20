@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { formatMoney } from '@/lib/money';
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
@@ -216,18 +217,9 @@ export function Money({
   const sizes = { sm: 'text-sm', base: 'text-base', lg: 'text-xl', xl: 'text-3xl' };
   return (
     <span className={cx('tabular font-semibold', sizes[size], className)}>
-      {formatMoneyValue(pence, showSign)}
+      {formatMoney(pence, { showSign })}
     </span>
   );
-}
-
-function formatMoneyValue(pence: number, showSign?: boolean): string {
-  const negative = pence < 0;
-  const abs = Math.abs(pence);
-  const whole = Math.floor(abs / 100).toLocaleString('en-GB');
-  const rest = String(abs % 100).padStart(2, '0');
-  const sign = negative ? '−' : showSign ? '+' : '';
-  return `${sign}£${whole}.${rest}`;
 }
 
 export function DataRow({
