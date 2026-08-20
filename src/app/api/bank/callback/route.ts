@@ -6,10 +6,11 @@ import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { syncBankConnection } from '@/domain/bank-sync';
 
 export const dynamic = 'force-dynamic';
+const BANK_STATE_COOKIE = 'tb_bank_state';
 
 export async function GET(request: NextRequest) {
   const context = await requirePermissionOrThrow('company.settings');
-  const state = request.nextUrl.searchParams.get('state');
+  const state = request.cookies.get(BANK_STATE_COOKIE)?.value;
   if (!state) {
     return NextResponse.redirect(new URL('/settings/accounts?bank=invalid-return', request.url));
   }
@@ -27,7 +28,9 @@ export async function GET(request: NextRequest) {
     .limit(1);
   const connection = rows[0];
   if (!connection) {
-    return NextResponse.redirect(new URL('/settings/accounts?bank=invalid-return', request.url));
+    const response = NextResponse.redirect(new URL('/settings/accounts?bank=invalid-return', request.url));
+    response.cookies.delete(BANK_STATE_COOKIE);
+    return response;
   }
 
   try {
@@ -41,13 +44,17 @@ export async function GET(request: NextRequest) {
     const url = new URL('/settings/accounts', request.url);
     url.searchParams.set('bank', 'connected');
     url.searchParams.set('imported', String(result.imported));
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete(BANK_STATE_COOKIE);
+    return response;
   } catch (error) {
     console.error('Open Banking callback sync failed', error);
     await db
       .update(bankConnections)
       .set({ status: 'error', updatedAt: new Date() })
       .where(and(eq(bankConnections.companyId, context.company.id), eq(bankConnections.id, connection.id)));
-    return NextResponse.redirect(new URL('/settings/accounts?bank=sync-error', request.url));
+    const response = NextResponse.redirect(new URL('/settings/accounts?bank=sync-error', request.url));
+    response.cookies.delete(BANK_STATE_COOKIE);
+    return response;
   }
 }
