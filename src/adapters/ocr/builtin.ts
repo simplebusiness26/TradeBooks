@@ -70,7 +70,7 @@ export function extractFromText(text: string, provider: string): ReceiptExtracti
   }
 
   const gross = findAmount(text, [
-    /total\s*(?:due|to\s*pay|amount)?\s*(?:\(inc[^)]*\))?\s*[:£]?\s*([£]?-?[\d,]+\.?\d*)/i,
+    /\btotal\b\s*(?:due|to\s*pay|amount)?\s*(?:\(inc[^)]*\))?\s*[:£]?\s*([£]?-?[\d,]+\.?\d*)/i,
     /amount\s*(?:due|paid)\s*[:£]?\s*([£]?-?[\d,]+\.?\d*)/i,
     /balance\s*due\s*[:£]?\s*([£]?-?[\d,]+\.?\d*)/i,
   ]);
