@@ -252,6 +252,13 @@ a working local default. The accounting mappings are real and unit-tested even t
 transport is not implemented — the mapped payload can be downloaded today. Provider-specific tax
 codes exist only inside adapters.
 
+## Background work
+Import, extraction and matching run synchronously inside the request. For the volumes a trade
+business produces — a monthly statement is tens to hundreds of lines — this is faster and far more
+reliable than a queue with no worker process to run it. The per-row work is isolated in
+`autoProcessTransaction` and `processDocument`, so moving it behind a queue later is a contained
+change. That trade-off is recorded in `HANDOVER.md` rather than hidden.
+
 ## Deliberate omissions
 - **No HMRC submission.** Preparation only, stated plainly on every screen.
 - **No payment initiation.** Payments are recorded, never made.

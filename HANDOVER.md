@@ -101,6 +101,10 @@ data integrity checkable rather than assumed. The tests assert it balances after
 - CSV statement import that reads whatever column names your bank uses, handles both signed-amount
   and separate paid-in/paid-out layouts, reports unreadable rows instead of failing the file, and
   is idempotent twice over (file hash and per-line fingerprint).
+- CSV import for existing customers and suppliers, including UTRs and CIS status, so a business can
+  bring its contacts across without retyping them. Re-importing updates rather than duplicates.
+- Suspected duplicate detection: an identical statement line on the same day raises a question
+  rather than being silently kept or silently dropped.
 - CSV exports for transactions, invoices, bills, customers, suppliers, jobs and the journal.
 - An accountant pack containing all of them.
 - Mapped payloads for Xero, QuickBooks and FreeAgent that you can download today to see exactly
@@ -119,8 +123,9 @@ All of the following pass on the current code:
 | Check | What it covers | Result |
 | --- | --- | --- |
 | `npm run typecheck` | TypeScript, strict mode, no implicit `any`, checked index access | Passes |
-| `npm run test` | 109 unit and integration tests against a real PostgreSQL database | Passes |
-| `npm run build` | Production build, 48 routes | Passes |
+| `npm run lint` | ESLint with the Next.js and TypeScript rule sets | Passes |
+| `npm run test` | 119 unit and integration tests against a real PostgreSQL database | Passes |
+| `npm run build` | Production build, 50 routes | Passes |
 | `npm run test:e2e` | Browser journeys on a phone viewport and a desktop viewport | Passes |
 
 What the tests actually prove:
@@ -276,6 +281,9 @@ Honest list, in order of how likely you are to hit them.
    be written against credentials nobody has.
 8. **Bank feed is CSV-only today.** Import is idempotent and every downstream workflow is identical
    whether a line arrived by CSV or a feed.
+9. **Statement import is processed synchronously.** A file of a few thousand lines takes a few
+   seconds. The per-row work is already isolated in one function, so moving it to a background
+   queue later is a contained change rather than a rewrite.
 
 ---
 

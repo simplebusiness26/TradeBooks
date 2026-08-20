@@ -13,6 +13,7 @@ import { addBankAccount, createUser, removeMember, updateCompanySettings } from 
 import { recordAudit } from '@/domain/audit';
 import { hashPassword, MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { invalidateAllUserSessions } from '@/lib/session';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { AppError, NotFoundError } from '@/lib/errors';
 
 const businessSchema = z.object({
@@ -408,6 +409,43 @@ export async function addCategoryAction(_prev: ActionState, formData: FormData):
 
     revalidatePath('/settings/categories');
     return success('Category added.');
+  });
+}
+
+export async function importContactsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const context = await requirePermissionStrict('imports.run');
+    checkRateLimit(`import-contacts:${context.company.id}`, RATE_LIMITS.import);
+
+    const kind = String(formData.get('kind') ?? 'customers');
+    const file = formData.get('file');
+    if (!(file instanceof File) || file.size === 0) return failure('Choose a CSV file to import.');
+    if (file.size > 4 * 1024 * 1024) return failure('That file is too big. Split it into smaller batches.');
+
+    const content = Buffer.from(await file.arrayBuffer()).toString('utf8');
+    const { importCustomersCsv, importSuppliersCsv } = await import('@/domain/import-contacts');
+
+    const result =
+      kind === 'suppliers'
+        ? await importSuppliersCsv(db, context.company.id, content, context.user.userId)
+        : await importCustomersCsv(db, context.company.id, content, context.user.userId);
+
+    revalidatePath('/customers');
+    revalidatePath('/suppliers');
+    revalidatePath('/subcontractors');
+
+    const parts: string[] = [];
+    if (result.created > 0) parts.push(`${result.created} added`);
+    if (result.updated > 0) parts.push(`${result.updated} updated`);
+    if (result.skipped > 0) parts.push(`${result.skipped} skipped with no name`);
+    if (result.errors.length > 0) parts.push(`${result.errors.length} could not be read`);
+
+    return success(parts.length > 0 ? `${parts.join(', ')}.` : 'Nothing to import.', {
+      errors: result.errors.slice(0, 10),
+    });
   });
 }
 

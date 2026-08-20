@@ -778,6 +778,67 @@ export async function unlinkTransaction(
   await postTransactionJournal(db, row);
 }
 
+/**
+ * Flags statement lines that look like the same payment recorded twice.
+ *
+ * Only exact repeats are questioned — same account, same day, same amount and
+ * the same description. Two genuinely separate fill-ups at the same station on
+ * the same day do happen, so the owner is asked rather than told.
+ */
+export async function flagSuspectedDuplicates(
+  db: Database,
+  companyId: string,
+  transactionIds: string[],
+): Promise<number> {
+  if (transactionIds.length === 0) return 0;
+
+  const rows = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.companyId, companyId), inArray(transactions.id, transactionIds)));
+
+  const groups = new Map<string, TransactionRow[]>();
+  for (const row of rows) {
+    const key = [row.bankAccountId, row.transactionDate, row.direction, row.amountPence, normaliseDescription(row.description)].join('|');
+    const list = groups.get(key);
+    if (list) list.push(row);
+    else groups.set(key, [row]);
+  }
+
+  let raised = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [first, ...rest] = group as [TransactionRow, ...TransactionRow[]];
+    for (const duplicate of rest) {
+      await raiseException(db, {
+        companyId,
+        type: 'duplicate_suspected',
+        subjectType: 'transaction',
+        subjectId: duplicate.id,
+        question: `You paid ${formatMoney(duplicate.amountPence)} to ${titleCase(duplicate.counterparty ?? duplicate.description)} twice on ${duplicate.transactionDate}. Is that right?`,
+        detail: duplicate.description,
+        dedupeKey: `duplicate_suspected:${first.id}:${duplicate.id}`,
+        candidates: [
+          {
+            id: 'both-real',
+            label: 'Yes, both are real',
+            sublabel: 'Keep them both',
+            action: { kind: 'not_duplicate' },
+          },
+          {
+            id: 'exclude',
+            label: 'No, one is a mistake',
+            sublabel: 'Leave this one out of the books',
+            action: { kind: 'dismiss', note: 'Marked as a duplicate by the owner.' },
+          },
+        ],
+      });
+      raised += 1;
+    }
+  }
+  return raised;
+}
+
 export async function supplierNamesFor(db: Database, companyId: string, ids: string[]) {
   if (ids.length === 0) return new Map<string, string>();
   const rows = await db

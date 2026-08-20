@@ -6,7 +6,7 @@ import { parseCsv, pickColumn } from '@/lib/csv';
 import { parseMoneyInput, MoneyError } from '@/lib/money';
 import { isIsoDate, makeIso, type IsoDate } from '@/lib/dates';
 import { AppError, ValidationError } from '@/lib/errors';
-import { autoProcessTransaction, createTransaction } from './transactions';
+import { autoProcessTransaction, createTransaction, flagSuspectedDuplicates } from './transactions';
 import { recordAudit } from './audit';
 
 export type ImportResult = {
@@ -267,6 +267,7 @@ export async function importStatement(db: Database, input: ImportStatementInput)
     for (const id of createdIds) {
       await autoProcessTransaction(db, input.companyId, id);
     }
+    await flagSuspectedDuplicates(db, input.companyId, createdIds);
   }
 
   return {

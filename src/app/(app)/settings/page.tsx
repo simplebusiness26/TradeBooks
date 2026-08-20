@@ -36,6 +36,13 @@ export default async function SettingsPage() {
       show: can(role, 'company.settings'),
     },
     {
+      href: '/settings/import',
+      label: 'Import contacts',
+      description: 'Bring existing customers and suppliers across from a spreadsheet',
+      icon: 'download',
+      show: can(role, 'imports.run'),
+    },
+    {
       href: '/settings/people',
       label: 'People',
       description: 'Who can sign in and what they can do',
