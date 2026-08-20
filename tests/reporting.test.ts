@@ -532,7 +532,8 @@ describe('exports and connectors', () => {
       expect(mapped.resources.length).toBeGreaterThan(0);
       expect(adapter.configured).toBe(false);
       expect(adapter.authorisationUrl(fixture.companyId)).toBeNull();
-      await expect(adapter.push(mapped)).rejects.toBeInstanceOf(AccountingNotConnectedError);
+      expect(mapped.warnings).toBeInstanceOf(Array);
+      await expect(adapter.push()).rejects.toBeInstanceOf(AccountingNotConnectedError);
     }
 
     const xero = new XeroAdapter().map(bundle);

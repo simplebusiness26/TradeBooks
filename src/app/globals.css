@@ -1,0 +1,90 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-50: #f6f7f9;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d5d9e2;
+  --color-ink-300: #b0b8c8;
+  --color-ink-400: #8590a6;
+  --color-ink-500: #667189;
+  --color-ink-600: #515a70;
+  --color-ink-700: #42495c;
+  --color-ink-800: #393e4d;
+  --color-ink-900: #1e222c;
+  --color-ink-950: #12141b;
+
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #d9ebff;
+  --color-brand-200: #bcdcff;
+  --color-brand-300: #8ec7ff;
+  --color-brand-400: #59a7ff;
+  --color-brand-500: #3384fb;
+  --color-brand-600: #1d64f0;
+  --color-brand-700: #164ddc;
+  --color-brand-800: #1840b2;
+  --color-brand-900: #1a3b8c;
+
+  --color-good-50: #ecfdf3;
+  --color-good-100: #d1fadf;
+  --color-good-600: #039855;
+  --color-good-700: #027a48;
+  --color-good-900: #054f31;
+
+  --color-warn-50: #fffaeb;
+  --color-warn-100: #fef0c7;
+  --color-warn-600: #dc6803;
+  --color-warn-700: #b54708;
+  --color-warn-900: #7a2e0e;
+
+  --color-bad-50: #fef3f2;
+  --color-bad-100: #fee4e2;
+  --color-bad-600: #d92d20;
+  --color-bad-700: #b42318;
+  --color-bad-900: #7a271a;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-ink-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  /* Room for the fixed bottom navigation on phones. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Inputs at 16px or larger stop iOS Safari zooming when they gain focus. */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Visible keyboard focus everywhere, not just where a designer remembered. */
+:focus-visible {
+  outline: 3px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
