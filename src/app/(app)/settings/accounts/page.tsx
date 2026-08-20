@@ -71,27 +71,27 @@ export default async function AccountsPage({
       />
 
       {params.bank === 'connected' ? (
-        <Notice tone="success" title="Bank connected">
+        <Notice tone="good" title="Bank connected">
           TradeBooks connected the bank and imported {params.imported ?? '0'} new transaction{params.imported === '1' ? '' : 's'}.
         </Notice>
       ) : null}
       {params.bank === 'synced' ? (
-        <Notice tone="success" title="Bank up to date">
+        <Notice tone="good" title="Bank up to date">
           Imported {params.imported ?? '0'} new transaction{params.imported === '1' ? '' : 's'}. Existing transactions were safely ignored.
         </Notice>
       ) : null}
       {params.bank === 'sync-warning' || params.bank === 'sync-error' || params.bank === 'connect-error' ? (
-        <Notice tone="warning" title="Bank connection needs another try">
+        <Notice tone="warn" title="Bank connection needs another try">
           Your existing bookkeeping is safe. Try connecting or syncing again; if it still fails, check the TrueLayer connection settings.
         </Notice>
       ) : null}
       {params.bank === 'not-configured' ? (
-        <Notice tone="warning" title="Open Banking is not switched on yet">
+        <Notice tone="warn" title="Open Banking is not switched on yet">
           The TrueLayer credentials are present only when the bank-feed driver is enabled on the server.
         </Notice>
       ) : null}
       {params.bank === 'invalid-return' ? (
-        <Notice tone="warning" title="That bank return could not be verified">
+        <Notice tone="warn" title="That bank return could not be verified">
           Start again with the Connect bank button so TradeBooks can securely match the bank approval to this business.
         </Notice>
       ) : null}
