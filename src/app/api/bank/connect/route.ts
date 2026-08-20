@@ -7,6 +7,7 @@ import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { env } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
+const BANK_STATE_COOKIE = 'tb_bank_state';
 
 export async function GET(request: NextRequest) {
   const context = await requirePermissionOrThrow('company.settings');
@@ -16,19 +17,17 @@ export async function GET(request: NextRequest) {
   }
 
   const stateNonce = randomBytes(24).toString('base64url');
-  const baseReturnUri = env().TRUELAYER_REDIRECT_URI;
-  if (!baseReturnUri) {
+  const returnUri = env().TRUELAYER_REDIRECT_URI;
+  if (!returnUri) {
     return NextResponse.redirect(new URL('/settings/accounts?bank=not-configured', request.url));
   }
-  const returnUri = new URL(baseReturnUri);
-  returnUri.searchParams.set('state', stateNonce);
 
   try {
     const created = await feed.createConnection({
       companyId: context.company.id,
       userName: context.user.name,
       userEmail: context.user.email,
-      returnUri: returnUri.toString(),
+      returnUri,
       userIp: request.headers.get('x-forwarded-for'),
     });
 
@@ -41,7 +40,15 @@ export async function GET(request: NextRequest) {
       createdByUserId: context.user.userId,
     });
 
-    return NextResponse.redirect(created.hostedPageUri);
+    const response = NextResponse.redirect(created.hostedPageUri);
+    response.cookies.set(BANK_STATE_COOKIE, stateNonce, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: env().NODE_ENV === 'production',
+      path: '/api/bank/callback',
+      maxAge: 60 * 30,
+    });
+    return response;
   } catch (error) {
     console.error('Open Banking connection failed', error);
     return NextResponse.redirect(new URL('/settings/accounts?bank=connect-error', request.url));
