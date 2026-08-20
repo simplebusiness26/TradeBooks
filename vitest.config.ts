@@ -15,6 +15,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `server-only` is a build-time guard for Next.js; under Vitest the
+      // modules it protects are exercised directly on the server.
+      'server-only': fileURLToPath(new URL('./tests/helpers/server-only-stub.ts', import.meta.url)),
     },
   },
 });

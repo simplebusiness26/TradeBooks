@@ -160,16 +160,19 @@ export function vatPeriodFor(
   const anchorMonthIndex = anchorEnd && isIsoDate(anchorEnd) ? parseIso(anchorEnd).month : months;
   const absolute = year * 12 + (month - 1);
   const anchorAbsolute = anchorMonthIndex - 1;
-  const offset = ((absolute - anchorAbsolute) % months + months) % months;
-  const endAbsolute = absolute + (months - 1 - offset);
+  // Period ends fall on months where (month − anchor) is a whole number of
+  // periods. Walk forward to the first such month on or after `date`.
+  const offset = (((absolute - anchorAbsolute) % months) + months) % months;
+  const endAbsolute = absolute + ((months - offset) % months);
   const endYear = Math.floor(endAbsolute / 12);
   const endMonth = (endAbsolute % 12) + 1;
   const end = makeIso(endYear, endMonth, daysInMonth(endYear, endMonth));
   const start = startOfMonth(addMonths(end, -(months - 1)));
   const startParts = parseIso(start);
   const label = `${MONTH_SHORT[startParts.month - 1]}–${MONTH_SHORT[endMonth - 1]} ${endYear}`;
-  // Standard VAT: payment and return are due one calendar month and 7 days after period end.
-  const due = addDays(addMonths(end, 1), 7);
+  // Standard VAT: the return and payment are due one calendar month and 7
+  // days after the period ends — for a quarter ending 30 June, 7 August.
+  const due = addDays(endOfMonth(addMonths(end, 1)), 7);
   return { start, end, label, due };
 }
 

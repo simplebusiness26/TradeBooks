@@ -6,6 +6,9 @@
  */
 const NOISE_PATTERNS: RegExp[] = [
   /\bcard\s*\d{2,4}\b/gi,
+  // Trailing card last-four / terminal number, so the same merchant paid on a
+  // different card still produces one match key.
+  /\s\d{3,6}\s*$/,
   /\b\d{2}[/-]\d{2}(?:[/-]\d{2,4})?\b/g,
   /\bref[:\s]*[a-z0-9-]{4,}\b/gi,
   /\bon\s+\d{1,2}\s+\w{3}\b/gi,

@@ -480,6 +480,8 @@ export async function allocatePayment(
   userId: string,
   source: DecisionSource = 'user',
 ): Promise<void> {
+  if (allocations.length === 0) return;
+
   const rows = await db
     .select()
     .from(payments)

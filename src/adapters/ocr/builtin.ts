@@ -126,7 +126,9 @@ export function extractFromText(text: string, provider: string): ReceiptExtracti
   let penalty = 0;
   if (result.netPence && result.vatPence && result.grossPence) {
     const diff = Math.abs(result.netPence.value + result.vatPence.value - result.grossPence.value);
-    if (diff > 2) penalty = 30;
+    // Net + VAT must reconcile to the total; if they do not, something was
+    // misread and the values must not be trusted enough to auto-apply.
+    if (diff > 2) penalty = 45;
   }
 
   result.confidence = Math.max(0, Math.min(95, signals * 18) - penalty);
