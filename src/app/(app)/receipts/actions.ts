@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { db } from '@/db/client';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { parseMoneyInput } from '@/lib/money';
@@ -20,7 +20,7 @@ import {
 
 export async function uploadReceiptAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('documents.upload');
+    const context = await requirePermissionStrict('documents.upload');
     checkRateLimit(`upload:${context.company.id}`, RATE_LIMITS.upload);
 
     const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
@@ -87,7 +87,7 @@ const detailsSchema = z.object({
 
 export async function updateReceiptAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('documents.upload');
+    const context = await requirePermissionStrict('documents.upload');
     const parsed = detailsSchema.safeParse({
       documentId: formData.get('documentId'),
       supplierNameText: emptyToUndefined(formData.get('supplierNameText')),
@@ -128,7 +128,7 @@ export async function updateReceiptAction(_prev: ActionState, formData: FormData
 }
 
 export async function findMatchesAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('documents.upload');
+  const context = await requirePermissionStrict('documents.upload');
   const documentId = String(formData.get('documentId') ?? '');
   await processDocument(db, context.company.id, documentId, { userId: context.user.userId });
   revalidatePath(`/receipts/${documentId}`);
@@ -136,7 +136,7 @@ export async function findMatchesAction(formData: FormData): Promise<void> {
 }
 
 export async function matchReceiptAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('documents.upload');
+  const context = await requirePermissionStrict('documents.upload');
   const documentId = String(formData.get('documentId') ?? '');
   const transactionId = String(formData.get('transactionId') ?? '');
   await matchDocumentToTransaction(db, context.company.id, documentId, transactionId, {
@@ -150,7 +150,7 @@ export async function matchReceiptAction(formData: FormData): Promise<void> {
 }
 
 export async function unmatchReceiptAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('documents.upload');
+  const context = await requirePermissionStrict('documents.upload');
   const documentId = String(formData.get('documentId') ?? '');
   await unmatchDocument(db, context.company.id, documentId, context.user.userId);
   revalidatePath(`/receipts/${documentId}`);

@@ -34,11 +34,12 @@ export function BottomNav({ askMeCount }: { askMeCount: number }) {
                   <Icon name={item.icon} className="size-6" />
                   {badge > 0 ? (
                     <span className="absolute -right-2.5 -top-1.5 min-w-5 rounded-full bg-bad-600 px-1 text-center text-[10px] font-bold leading-5 text-white">
-                      {badge > 9 ? '9+' : badge}
+                      <span aria-hidden="true">{badge > 9 ? '9+' : badge}</span>
+                      <span className="sr-only">{badge} waiting</span>
                     </span>
                   ) : null}
                 </span>
-                {item.label}
+                <span>{item.label}</span>
               </Link>
             </li>
           );

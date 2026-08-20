@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { customers, suppliers } from '@/db/schema';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
 import { recordAudit } from '@/domain/audit';
@@ -28,7 +28,7 @@ const customerSchema = z.object({
 
 export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const parsed = customerSchema.safeParse(readContact(formData));
     if (!parsed.success) return failure('Please check the details.', fieldErrorsOf(parsed.error));
 
@@ -109,7 +109,7 @@ const supplierSchema = customerSchema
 
 export async function saveSupplierAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const kind = String(formData.get('kind') ?? 'supplier');
     const parsed = supplierSchema.safeParse({
       ...readContact(formData),

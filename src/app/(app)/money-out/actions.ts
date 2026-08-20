@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { transactions } from '@/db/schema';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
 import { isIsoDate, todayIso } from '@/lib/dates';
@@ -44,7 +44,7 @@ export async function categoriseTransactionAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('transactions.categorise');
+    const context = await requirePermissionStrict('transactions.categorise');
     const parsed = categoriseSchema.safeParse({
       transactionId: formData.get('transactionId'),
       categoryId: emptyToNull(formData.get('categoryId')),
@@ -93,7 +93,7 @@ export async function categoriseTransactionAction(
 }
 
 export async function markReviewedAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('transactions.reconcile');
+  const context = await requirePermissionStrict('transactions.reconcile');
   const transactionId = String(formData.get('transactionId') ?? '');
   await markReviewed(db, context.company.id, transactionId, context.user.userId);
   revalidatePath(`/money-out/${transactionId}`);
@@ -101,7 +101,7 @@ export async function markReviewedAction(formData: FormData): Promise<void> {
 }
 
 export async function excludeTransactionAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('transactions.categorise');
+  const context = await requirePermissionStrict('transactions.categorise');
   const transactionId = String(formData.get('transactionId') ?? '');
   await db
     .update(transactions)
@@ -131,7 +131,7 @@ const manualTransactionSchema = z.object({
 
 export async function addTransactionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const parsed = manualTransactionSchema.safeParse({
       bankAccountId: formData.get('bankAccountId'),
       transactionDate: formData.get('transactionDate') || todayIso(),
@@ -178,7 +178,7 @@ export async function addTransactionAction(_prev: ActionState, formData: FormDat
 
 export async function importStatementAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('imports.run');
+    const context = await requirePermissionStrict('imports.run');
     checkRateLimit(`import:${context.company.id}`, RATE_LIMITS.import);
 
     const bankAccountId = String(formData.get('bankAccountId') ?? '');
@@ -241,7 +241,7 @@ const billSchema = z.object({
 
 export async function createBillAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
 
     const descriptions = formData.getAll('lineDescription').map(String);
     const prices = formData.getAll('lineUnitPrice').map(String);
@@ -300,7 +300,7 @@ export async function createBillAction(_prev: ActionState, formData: FormData): 
 
 export async function payBillAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const billId = String(formData.get('billId') ?? '');
     const amountPence = parseMoneyInput(String(formData.get('amount') ?? '0'));
     const paymentDate = String(formData.get('paymentDate') ?? todayIso());
@@ -329,7 +329,7 @@ export async function payBillAction(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function voidBillAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const billId = String(formData.get('billId') ?? '');
   const reason = String(formData.get('reason') ?? 'Cancelled');
   await voidBill(db, context.company.id, billId, context.user.userId, reason);
@@ -338,7 +338,7 @@ export async function voidBillAction(formData: FormData): Promise<void> {
 }
 
 export async function linkTransactionToBillAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('transactions.reconcile');
+  const context = await requirePermissionStrict('transactions.reconcile');
   const transactionId = String(formData.get('transactionId') ?? '');
   const billId = String(formData.get('billId') ?? '');
   const { getTransaction } = await import('@/domain/transactions');
@@ -367,7 +367,7 @@ export async function linkTransactionToBillAction(formData: FormData): Promise<v
 }
 
 export async function unlinkTransactionAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('transactions.reconcile');
+  const context = await requirePermissionStrict('transactions.reconcile');
   const transactionId = String(formData.get('transactionId') ?? '');
   await unlinkTransaction(
     db,

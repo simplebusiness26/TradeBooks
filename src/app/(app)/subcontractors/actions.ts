@@ -2,14 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { prepareCisPeriod, recordCisFiled } from '@/domain/cis';
 import { isIsoDate } from '@/lib/dates';
 
 export async function prepareCisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('periods.prepare');
+    const context = await requirePermissionStrict('periods.prepare');
     const start = String(formData.get('start') ?? '');
     const end = String(formData.get('end') ?? '');
     if (!isIsoDate(start) || !isIsoDate(end)) return failure('That period is not valid.');
@@ -22,7 +22,7 @@ export async function prepareCisAction(_prev: ActionState, formData: FormData): 
 
 export async function markCisFiledAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('periods.close');
+    const context = await requirePermissionStrict('periods.close');
     const start = String(formData.get('start') ?? '');
     const end = String(formData.get('end') ?? '');
     const reference = String(formData.get('reference') ?? '').trim();

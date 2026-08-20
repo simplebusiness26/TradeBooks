@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { db } from '@/db/client';
 import { requireAuth } from '@/lib/auth-context';
 import { documentCounts, listDocuments } from '@/domain/queries';
@@ -43,9 +44,9 @@ export default async function ReceiptsPage({
         <div className="mb-4">
           <Notice tone="warn" title={`${missing} payment${missing === 1 ? '' : 's'} without a receipt`}>
             Chase these up before the VAT period closes — you can only reclaim VAT with the evidence.{' '}
-            <a href="/money-out?view=needs_receipt" className="font-semibold underline">
+            <Link href="/money-out?view=needs_receipt" className="font-semibold underline">
               See which ones
-            </a>
+            </Link>
           </Notice>
         </div>
       ) : null}

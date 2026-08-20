@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { bankAccounts, categories, memberships, users } from '@/db/schema';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
 import { isIsoDate } from '@/lib/dates';
@@ -38,7 +38,7 @@ const businessSchema = z.object({
 
 export async function updateBusinessAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('company.settings');
+    const context = await requirePermissionStrict('company.settings');
     const parsed = businessSchema.safeParse({
       name: formData.get('name'),
       tradingName: emptyToUndefined(formData.get('tradingName')),
@@ -111,7 +111,7 @@ const accountSchema = z.object({
 
 export async function addAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('company.settings');
+    const context = await requirePermissionStrict('company.settings');
     const parsed = accountSchema.safeParse({
       name: formData.get('name'),
       accountType: formData.get('accountType') ?? 'current',
@@ -150,7 +150,7 @@ export async function addAccountAction(_prev: ActionState, formData: FormData): 
 }
 
 export async function archiveAccountAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('company.settings');
+  const context = await requirePermissionStrict('company.settings');
   const accountId = String(formData.get('accountId') ?? '');
   await db
     .update(bankAccounts)
@@ -180,7 +180,7 @@ const inviteSchema = z.object({
  */
 export async function addPersonAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('company.members');
+    const context = await requirePermissionStrict('company.members');
     const parsed = inviteSchema.safeParse({
       name: formData.get('name'),
       email: formData.get('email'),
@@ -234,7 +234,7 @@ export async function addPersonAction(_prev: ActionState, formData: FormData): P
 }
 
 export async function changeRoleAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('company.members');
+  const context = await requirePermissionStrict('company.members');
   const userId = String(formData.get('userId') ?? '');
   const role = String(formData.get('role') ?? '');
   if (!['owner', 'admin', 'staff', 'reviewer'].includes(role)) throw new AppError('Unknown role.');
@@ -265,7 +265,7 @@ export async function changeRoleAction(formData: FormData): Promise<void> {
 }
 
 export async function removePersonAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('company.members');
+  const context = await requirePermissionStrict('company.members');
   const userId = String(formData.get('userId') ?? '');
   await removeMember(db, context.company.id, userId);
   await recordAudit(db, {
@@ -292,7 +292,7 @@ const passwordSchema = z
 
 export async function changePasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.read');
+    const context = await requirePermissionStrict('records.read');
     const parsed = passwordSchema.safeParse({
       currentPassword: formData.get('currentPassword'),
       newPassword: formData.get('newPassword'),
@@ -335,7 +335,7 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
 }
 
 export async function archiveCategoryAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('company.settings');
+  const context = await requirePermissionStrict('company.settings');
   const categoryId = String(formData.get('categoryId') ?? '');
   const isArchived = String(formData.get('isArchived') ?? '') === 'yes';
   await db
@@ -357,7 +357,7 @@ const categorySchema = z.object({
 
 export async function addCategoryAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('company.settings');
+    const context = await requirePermissionStrict('company.settings');
     const parsed = categorySchema.safeParse({
       name: formData.get('name'),
       kind: formData.get('kind') ?? 'expense',

@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { categoryIdByCode, resetDatabase, seedTwoCompanies, testDb, type Fixture } from './helpers/db';
 import type { Database } from '@/db/client';
 import { transactions } from '@/db/schema';

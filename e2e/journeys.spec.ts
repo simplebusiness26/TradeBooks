@@ -143,7 +143,7 @@ test.describe('the owner', () => {
     await expect(page.getByText('Filed against a payment')).toBeVisible();
 
     await page.goto(transactionUrl);
-    await expect(page.getByText('Receipt', { exact: false }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Brickworks Supplies/ })).toBeVisible();
   });
 
   test('imports a bank statement without duplicating it', async ({ page }) => {
@@ -217,9 +217,11 @@ test.describe('the bookkeeper', () => {
     await expect(page.locator('body')).toContainText('invoice.created');
   });
 
-  test('cannot reach owner-only settings', async ({ page }) => {
+  test('is told plainly when a screen is not theirs', async ({ page }) => {
     await signIn(page, REVIEWER);
     await page.goto('/settings/business');
+    await expect(page).toHaveURL(/no-access/);
+    await expect(page.getByText('only available to an owner or admin')).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Save business details');
   });
 
@@ -253,7 +255,7 @@ test.describe('mobile layout', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav).toBeVisible();
     for (const label of ['Home', 'Money in', 'Money out', 'Receipts', 'Ask me']) {
-      await expect(nav.getByText(label, { exact: true })).toBeVisible();
+      await expect(nav.getByRole('link', { name: new RegExp(label) })).toBeVisible();
     }
     // Nothing should force sideways scrolling on a phone.
     const overflow = await page.evaluate(

@@ -170,3 +170,91 @@ Provide:
 - manual/CSV import-export path
 
 Cloud/provider choice should not create unnecessary lock-in.
+---
+
+# As built — decisions taken during the V1 build
+
+This section records the concrete choices made against the plan above, and why. The specification
+before it is unchanged.
+
+## Stack
+- **Next.js 15 (App Router) + React 19 + TypeScript strict.** Server Components for reads, Server
+  Actions for writes, so there is no separate API surface to keep in step with the UI. `strict`,
+  `noUncheckedIndexedAccess` and `noImplicitOverride` are all on.
+- **PostgreSQL + Drizzle ORM** with generated SQL migrations in `drizzle/`. Drizzle keeps the
+  schema in TypeScript, so column types and query results stay checked end to end.
+- **Zod** at every input boundary — server actions, CSV rows, adapter responses and environment.
+- **Tailwind CSS v4** with a small set of primitives in `src/components/ui/`. No component library,
+  because the UI is deliberately plain and the tap-target and contrast rules are easier to hold
+  with our own primitives.
+- **Vitest** for unit and integration tests against a real PostgreSQL database, **Playwright** for
+  browser journeys on a phone and a desktop viewport.
+
+## Authentication
+Built in rather than delegated, so the product has no third-party identity dependency:
+- Passwords hashed with **scrypt** from Node's standard library — no native module to compile, no
+  platform-specific binary, and a recognised KDF.
+- Sessions are server-side rows; only the SHA-256 digest of the token is stored, so a database leak
+  cannot be replayed as a login.
+- Sign-in is rate limited per IP and per email, and an account locks for 15 minutes after repeated
+  failures. Failed sign-in returns one message regardless of whether the account exists.
+
+## Money
+Integer pence throughout, with `src/lib/money.ts` as the only place arithmetic happens. Parsing
+from user input and CSV works on the decimal string, never `parseFloat`. `splitGross` derives net
+first and takes VAT as the remainder, so `net + vat === gross` holds at every amount. Allocation
+across weights redistributes the rounding drift so a total is never lost or invented.
+
+## Dates
+Business dates are `YYYY-MM-DD` strings, never `Date` objects, so a receipt dated 1 April cannot
+become 31 March because the server runs in UTC. CIS tax months (6th to 5th), VAT periods anchored
+to the company's own period end, and the "one calendar month and seven days" VAT deadline are all
+implemented and tested, including across a British Summer Time change.
+
+## Internal ledger
+The plan asked for balanced and traceable states where applicable. That is implemented as a
+compact double-entry journal (`journal_entries` / `journal_lines`) with a small system chart of
+accounts, posted automatically from invoices, bills and bank transactions.
+
+- Postings are keyed by an idempotent `postingKey`, so editing a source record replaces its entry
+  rather than duplicating it, and cancelling a record removes it.
+- A transaction that settles a bill or an invoice posts against creditors or debtors rather than
+  the expense or income account, so a cost is never counted twice.
+- The reviewer sees a real trial balance, and the tests assert debits equal credits after every
+  workflow.
+
+The owner never sees any of this. It exists so integrity is checkable rather than assumed.
+
+## The confidence ladder
+Implemented in `src/domain/categorisation.ts` exactly in the order the plan specifies: exact rule,
+then supplier/customer history, then name and amount matching, then an optional AI provider, then
+Ask Me. `AUTO_APPLY_THRESHOLD` is 80; below it nothing is applied, it becomes a question. An AI
+suggestion is capped below that threshold by construction, so it can never auto-apply. A record a
+person has confirmed is never re-decided.
+
+Deterministic steps cost nothing and run first, so routine transactions never reach a model.
+
+## Matching
+Receipt-to-payment and payment-to-invoice matching score on amount, date proximity and name
+similarity, and only auto-apply at a high score **and** a clear margin over the runner-up. Every
+point of the score is turned into plain English ("the amount matches exactly, same day and same
+supplier") and shown to the owner, so an automatic decision is always explainable.
+
+## Receipts
+The built-in extractor parses text and emailed receipts for real. Photographs are reported as
+unsupported rather than guessed at, and the owner is asked for the two details needed; TradeBooks
+then finds the payment itself. Extraction never overwrites a value a person has entered, and the
+original file is written once and never modified.
+
+## Adapters
+Storage, OCR, AI, email, bank feed and three accounting packages each sit behind an interface with
+a working local default. The accounting mappings are real and unit-tested even though the OAuth
+transport is not implemented — the mapped payload can be downloaded today. Provider-specific tax
+codes exist only inside adapters.
+
+## Deliberate omissions
+- **No HMRC submission.** Preparation only, stated plainly on every screen.
+- **No payment initiation.** Payments are recorded, never made.
+- **Flat-rate VAT is recorded but calculated on the standard basis**, with a visible warning.
+- **The rate limiter is in-process**, which is correct for a single instance and documented as a
+  scale-out item.

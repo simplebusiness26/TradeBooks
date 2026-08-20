@@ -89,7 +89,20 @@ export async function requireAuthOrThrow(): Promise<AuthContext> {
   return context;
 }
 
+/**
+ * For pages: a role that does not cover the action gets a plain explanation
+ * rather than an error screen.
+ */
 export async function requirePermission(permission: Permission): Promise<AuthContext> {
+  const context = await requireAuth();
+  if (!can(context.role, permission)) {
+    redirect('/no-access');
+  }
+  return context;
+}
+
+/** For server actions and API routes, where a redirect would hide the reason. */
+export async function requirePermissionStrict(permission: Permission): Promise<AuthContext> {
   const context = await requireAuth();
   if (!can(context.role, permission)) {
     throw new AuthorizationError();

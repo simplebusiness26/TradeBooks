@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { customers, invoices } from '@/db/schema';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
 import { isIsoDate, todayIso } from '@/lib/dates';
@@ -84,7 +84,7 @@ function toDomainLines(
 
 export async function createInvoiceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
 
     const parsed = invoiceSchema.safeParse({
       customerId: formData.get('customerId'),
@@ -126,7 +126,7 @@ export async function createInvoiceAction(_prev: ActionState, formData: FormData
 
 export async function updateInvoiceLinesAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const invoiceId = String(formData.get('invoiceId') ?? '');
     const parsed = z.array(lineSchema).min(1).safeParse(readLines(formData));
     if (!parsed.success) return failure('Please check the invoice lines.');
@@ -146,7 +146,7 @@ export async function updateInvoiceLinesAction(_prev: ActionState, formData: For
 }
 
 export async function sendInvoiceAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const invoiceId = String(formData.get('invoiceId') ?? '');
   await sendInvoice(db, context.company.id, invoiceId, context.user.userId);
   revalidatePath(`/money-in/${invoiceId}`);
@@ -154,7 +154,7 @@ export async function sendInvoiceAction(formData: FormData): Promise<void> {
 }
 
 export async function voidInvoiceAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const invoiceId = String(formData.get('invoiceId') ?? '');
   const reason = String(formData.get('reason') ?? 'Cancelled by the owner');
   await voidInvoice(db, context.company.id, invoiceId, context.user.userId, reason);
@@ -175,7 +175,7 @@ export async function recordInvoicePaymentAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const parsed = paymentSchema.safeParse({
       invoiceId: formData.get('invoiceId'),
       amount: formData.get('amount'),
@@ -212,7 +212,7 @@ export async function recordInvoicePaymentAction(
 }
 
 export async function sendReminderAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const invoiceId = String(formData.get('invoiceId') ?? '');
   const invoice = await getInvoice(db, context.company.id, invoiceId);
 
@@ -263,7 +263,7 @@ export async function sendReminderAction(formData: FormData): Promise<void> {
 }
 
 export async function markOverdueAction(): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const rows = await db
     .select({ id: invoices.id })
     .from(invoices)
@@ -275,7 +275,7 @@ export async function markOverdueAction(): Promise<void> {
 }
 
 export async function allocateToInvoiceAction(formData: FormData): Promise<void> {
-  const context = await requirePermission('records.write');
+  const context = await requirePermissionStrict('records.write');
   const paymentId = String(formData.get('paymentId') ?? '');
   const invoiceId = String(formData.get('invoiceId') ?? '');
   const amountPence = parseMoneyInput(String(formData.get('amount') ?? '0'));

@@ -96,7 +96,7 @@ export function ListRow({
         {subtitle ? <div className="truncate text-sm text-ink-500">{subtitle}</div> : null}
         {meta ? <div className="mt-1 flex flex-wrap items-center gap-1.5">{meta}</div> : null}
       </div>
-      <div className="shrink-0 text-right">{right}</div>
+      {right ? <div className="shrink-0 text-right">{right}</div> : null}
       {href ? <Icon name="chevron" className="size-5 shrink-0 text-ink-300" /> : null}
     </div>
   );

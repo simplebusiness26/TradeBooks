@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { and, eq, desc } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { requireAuth } from '@/lib/auth-context';
-import { billLines, bills, documents, invoices, suppliers, transactions } from '@/db/schema';
+import { bills, documents, invoices, suppliers, transactions } from '@/db/schema';
 import { calculateJobProfitability, formatMarginPercent } from '@/domain/jobs';
 import { formatDate } from '@/lib/dates';
 import { Badge, ButtonLink, Card, DataRow, Money, Notice } from '@/components/ui/primitives';

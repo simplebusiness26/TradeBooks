@@ -1,3 +1,9 @@
+/*
+ * Exports are file downloads served by route handlers, not page navigations.
+ * A client-side <Link> would swallow the Content-Disposition header and leave
+ * the user on a blank screen, so plain anchors are correct here.
+ */
+/* eslint-disable @next/next/no-html-link-for-pages */
 import type { Metadata } from 'next';
 import { db } from '@/db/client';
 import { requirePermission } from '@/lib/auth-context';

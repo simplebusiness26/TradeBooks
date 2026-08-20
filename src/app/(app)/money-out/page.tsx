@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { db } from '@/db/client';
 import { requireAuth } from '@/lib/auth-context';
 import { listTransactions, transactionCounts, type TransactionFilter } from '@/domain/queries';
@@ -56,9 +57,9 @@ export default async function MoneyOutPage({
       />
 
       <p className="mb-3 flex flex-wrap gap-2 text-sm">
-        <a href="/money-out/bills" className="font-semibold text-brand-700 underline">
+        <Link href="/money-out/bills" className="font-semibold text-brand-700 underline">
           Supplier bills →
-        </a>
+        </Link>
       </p>
 
       {rows.length === 0 ? (

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { db } from '@/db/client';
 import { requirePermission } from '@/lib/auth-context';
 import { listAuditEvents } from '@/domain/audit';
-import { eq } from 'drizzle-orm';
 import { users } from '@/db/schema';
 import { formatDateTime } from '@/lib/dates';
 import { Badge, Card, EmptyState } from '@/components/ui/primitives';

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { db } from '@/db/client';
 import { requireAuth } from '@/lib/auth-context';
 import { formatMarginPercent, listJobSummaries, unallocatedJobCosts } from '@/domain/jobs';
@@ -35,9 +36,9 @@ export default async function JobsPage() {
           <Notice tone="warn" title="Some costs are not on a job yet">
             <Money pence={unallocated.totalPence} size="sm" /> across {unallocated.count} payment
             {unallocated.count === 1 ? '' : 's'}. Job profit is understated until they are allocated.{' '}
-            <a href="/money-out?view=all" className="font-semibold underline">
+            <Link href="/money-out?view=all" className="font-semibold underline">
               Sort them out
-            </a>
+            </Link>
           </Notice>
         </div>
       ) : null}

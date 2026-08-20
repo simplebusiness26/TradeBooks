@@ -4,7 +4,7 @@ import { requirePermission } from '@/lib/auth-context';
 import { listMembers } from '@/domain/company';
 import { ROLE_LABELS } from '@/lib/permissions';
 import { formatDateTime } from '@/lib/dates';
-import { Badge, Card, Notice } from '@/components/ui/primitives';
+import { Badge, Card } from '@/components/ui/primitives';
 import { PageHeader } from '@/components/ui/page';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { changeRoleAction, removePersonAction } from '../actions';

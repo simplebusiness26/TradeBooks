@@ -12,3 +12,7 @@ storage/
 !storage/.gitkeep
 .DS_Store
 npm-debug.log*
+test-results/
+playwright-report/
+.smoke-token
+.smoke-session.ts

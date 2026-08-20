@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { jobs } from '@/db/schema';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionStrict } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
 import { isIsoDate } from '@/lib/dates';
@@ -32,7 +32,7 @@ const jobSchema = z.object({
 
 export async function createJobAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const parsed = jobSchema.safeParse(readForm(formData));
     if (!parsed.success) return failure('Please check the job details.', fieldErrorsOf(parsed.error));
 
@@ -82,7 +82,7 @@ export async function createJobAction(_prev: ActionState, formData: FormData): P
 
 export async function updateJobAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
-    const context = await requirePermission('records.write');
+    const context = await requirePermissionStrict('records.write');
     const jobId = String(formData.get('jobId') ?? '');
     const parsed = jobSchema.safeParse(readForm(formData));
     if (!parsed.success) return failure('Please check the job details.', fieldErrorsOf(parsed.error));

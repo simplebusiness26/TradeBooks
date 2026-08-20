@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import { createDatabase, type Database } from './client';
 import { loadEnv } from '@/lib/env';
 import {
-  bankAccounts,
   categories,
   companies,
   customers,
