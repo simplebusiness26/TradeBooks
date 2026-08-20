@@ -124,7 +124,7 @@ All of the following pass on the current code:
 | --- | --- | --- |
 | `npm run typecheck` | TypeScript, strict mode, no implicit `any`, checked index access | Passes |
 | `npm run lint` | ESLint with the Next.js and TypeScript rule sets | Passes |
-| `npm run test` | 119 unit and integration tests against a real PostgreSQL database | Passes |
+| `npm run test` | 131 unit and integration tests against a real PostgreSQL database | Passes |
 | `npm run build` | Production build, 50 routes | Passes |
 | `npm run test:e2e` | Browser journeys on a phone viewport and a desktop viewport | Passes |
 
@@ -158,6 +158,9 @@ What the tests actually prove:
   rather than filename, size limits, and storage keys that cannot escape the storage root.
 - **The ledger** — debits equal credits after every workflow, and postings are removed when a
   document is cancelled.
+- **AI being optional** — with no provider configured (the default) rules, supplier mappings and
+  matching still sort payments at full confidence, anything left over becomes a question, the
+  answer is identical whether or not AI is allowed, and a suggestion can never apply itself.
 
 End-to-end, in a real browser: signing in, being redirected when signed out, wrong credentials
 rejected without revealing whether an account exists, answering a question in Ask Me, creating and
