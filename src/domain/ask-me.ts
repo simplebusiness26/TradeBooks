@@ -36,6 +36,7 @@ export const resolutionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('record_cash_expense') }),
   z.object({ kind: z.literal('wait_for_transaction') }),
   z.object({ kind: z.literal('not_duplicate') }),
+  z.object({ kind: z.literal('other_income') }),
   z.object({ kind: z.literal('dismiss'), note: z.string().max(400).optional() }),
 ]);
 
@@ -289,6 +290,22 @@ export async function resolveException(
 
     case 'not_duplicate': {
       message = 'Noted — both are real.';
+      break;
+    }
+
+    case 'other_income': {
+      if (exception.subjectType !== 'transaction') {
+        throw new AppError('That answer does not apply to this question.');
+      }
+      const otherIncome = await categoryByCode(db, companyId, 'sales_other');
+      await applyCategorisation(db, companyId, exception.subjectId, {
+        categoryId: otherIncome?.id ?? null,
+        source: 'user',
+        confidence: 100,
+        reason: 'Recorded as other income in Ask Me.',
+        confirmedByUserId: userId,
+      });
+      message = 'Recorded as other income.';
       break;
     }
 

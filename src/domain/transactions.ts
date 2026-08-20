@@ -423,6 +423,26 @@ export async function autoProcessTransaction(
     return { applied: false, confidence: 100, reason: 'Already confirmed by a person.' };
   }
 
+  // A payment that already settles an invoice or a bill needs no category:
+  // the sale or the cost lives on that document. Asking about it would be
+  // asking a question the records have already answered.
+  const settled = await settlesDocument(db, transactionId);
+  if (settled) {
+    await markSettledByDocument(db, companyId, transactionId, settled);
+    return {
+      applied: true,
+      confidence: 100,
+      reason: settled === 'invoice' ? 'Matched to a customer invoice.' : 'Matched to a supplier bill.',
+    };
+  }
+
+  // Money in without a linked invoice: the useful question is which invoice
+  // it pays, not which category it belongs to.
+  if (row.direction === 'money_in') {
+    const invoiceOutcome = await processIncomingPayment(db, companyId, row);
+    if (invoiceOutcome) return invoiceOutcome;
+  }
+
   const result = await categorise(
     db,
     {
@@ -455,6 +475,137 @@ export async function autoProcessTransaction(
 
   const exceptionId = await raiseTransactionQuestion(db, companyId, row, result);
   return { applied: false, exceptionId, confidence: result.confidence, reason: result.reason };
+}
+
+
+async function settlesDocument(db: Database, transactionId: string): Promise<'invoice' | 'bill' | null> {
+  const links = await db
+    .select({ linkedType: transactionLinks.linkedType })
+    .from(transactionLinks)
+    .where(eq(transactionLinks.transactionId, transactionId));
+  if (links.some((l) => l.linkedType === 'bill')) return 'bill';
+  if (links.some((l) => l.linkedType === 'invoice')) return 'invoice';
+  return null;
+}
+
+async function markSettledByDocument(
+  db: Database,
+  companyId: string,
+  transactionId: string,
+  kind: 'invoice' | 'bill',
+): Promise<void> {
+  await db
+    .update(transactions)
+    .set({
+      status: 'categorised',
+      reconciliationStatus: 'matched',
+      needsReceipt: false,
+      categorySource: 'system',
+      categoryConfidence: 100,
+      categoryReason:
+        kind === 'invoice'
+          ? 'Settles a customer invoice, so the sale is already recorded there.'
+          : 'Settles a supplier bill, so the cost is already recorded there.',
+      updatedAt: new Date(),
+    })
+    .where(and(eq(transactions.companyId, companyId), eq(transactions.id, transactionId)));
+
+  await closeExceptionsFor(db, companyId, 'transaction', transactionId, {
+    types: ['uncategorised_transaction', 'unallocated_payment', 'missing_receipt'],
+    note: kind === 'invoice' ? 'Matched to an invoice.' : 'Matched to a bill.',
+  });
+
+  const row = await getTransaction(db, companyId, transactionId);
+  await postTransactionJournal(db, row);
+}
+
+/**
+ * Handles money in: allocate it to the invoice it obviously pays, or ask
+ * which invoice it belongs to. Falls through to normal categorisation when
+ * there are no open invoices it could relate to.
+ */
+async function processIncomingPayment(
+  db: Database,
+  companyId: string,
+  row: TransactionRow,
+): Promise<{ applied: boolean; exceptionId?: string; confidence: number; reason: string } | null> {
+  const { findInvoiceMatchesForTransaction, describeReasons } = await import('./matching');
+  const decision = await findInvoiceMatchesForTransaction(db, companyId, row);
+
+  if (decision.outcome === 'auto' && decision.best) {
+    const { recordPayment, refreshInvoiceStatus } = await import('./invoices');
+    const invoice = decision.best.record;
+    const outstanding = invoice.grossPence - invoice.cisDeductionPence - invoice.paidPence;
+    const amount = Math.min(row.amountPence, Math.max(0, outstanding));
+    if (amount > 0) {
+      const paymentId = await recordPayment(db, {
+        companyId,
+        direction: 'customer_receipt',
+        customerId: invoice.customerId,
+        paymentDate: row.transactionDate,
+        amountPence: row.amountPence,
+        reference: row.reference,
+        transactionId: row.id,
+        allocations: [{ invoiceId: invoice.id, amountPence: amount }],
+        source: 'heuristic',
+        userId: null,
+      }).catch(() => null);
+
+      if (paymentId) {
+        await linkTransaction(db, companyId, {
+          transactionId: row.id,
+          linkedType: 'invoice',
+          linkedId: invoice.id,
+          amountPence: amount,
+          source: 'heuristic',
+          confidence: Math.min(99, decision.best.score),
+          reason: describeReasons(decision.best.reasons),
+        });
+        await refreshInvoiceStatus(db, companyId, invoice.id);
+        await markSettledByDocument(db, companyId, row.id, 'invoice');
+        return {
+          applied: true,
+          confidence: Math.min(99, decision.best.score),
+          reason: `Matched to invoice ${invoice.number} because ${describeReasons(decision.best.reasons)}.`,
+        };
+      }
+    }
+  }
+
+  if (decision.outcome === 'ask' && decision.candidates.length > 0) {
+    const exceptionId = await raiseException(db, {
+      companyId,
+      type: 'unallocated_payment',
+      subjectType: 'transaction',
+      subjectId: row.id,
+      question: `Which invoice does this ${formatMoney(row.amountPence)} payment cover?`,
+      detail: row.description,
+      candidates: [
+        ...decision.candidates.slice(0, 4).map((candidate) => ({
+          id: `invoice:${candidate.record.id}`,
+          label: `${candidate.record.number} — ${formatMoney(
+            candidate.record.grossPence - candidate.record.cisDeductionPence - candidate.record.paidPence,
+          )} outstanding`,
+          sublabel: describeReasons(candidate.reasons),
+          action: { kind: 'allocate_invoice', invoiceId: candidate.record.id },
+        })),
+        {
+          id: 'not-an-invoice',
+          label: 'It is not paying an invoice',
+          sublabel: 'Sort it as other income instead',
+          action: { kind: 'other_income' },
+        },
+      ],
+    });
+    return {
+      applied: false,
+      exceptionId,
+      confidence: decision.best?.score ?? 0,
+      reason: 'More than one invoice could match.',
+    };
+  }
+
+  return null;
 }
 
 async function bumpRuleUsage(db: Database, ruleId: string): Promise<void> {

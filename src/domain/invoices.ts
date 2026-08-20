@@ -407,7 +407,8 @@ export type RecordPaymentInput = {
   transactionId?: string | null;
   allocations?: { invoiceId?: string; billId?: string; amountPence: Pence }[];
   source?: DecisionSource;
-  userId: string;
+  /** Null when TradeBooks matched it automatically rather than a person. */
+  userId: string | null;
 };
 
 /** Records a payment and allocates it across invoices or bills. */
@@ -435,7 +436,7 @@ export async function recordPayment(db: Database, input: RecordPaymentInput): Pr
       notes: input.notes ?? null,
       transactionId: input.transactionId ?? null,
       source: input.source ?? 'user',
-      createdByUserId: input.userId,
+      createdByUserId: input.userId ?? null,
     })
     .returning({ id: payments.id });
 

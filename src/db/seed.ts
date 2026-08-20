@@ -414,6 +414,36 @@ export async function seedDemo(db: Database, options: { password: string; today?
     userId: ownerId,
   });
 
+  // Awaiting payment, so the owner has something in "Bills to pay".
+  await createBill(db, {
+    companyId,
+    supplierId: supplierIds.get('SIG Roofing')!,
+    billDate: addDays(today, -9),
+    dueDate: addDays(today, 21),
+    reference: 'SIG-INV-771204',
+    description: 'Monthly merchant account — August materials',
+    jobId: jobIds.get('J-1044')!,
+    lines: [
+      {
+        description: 'UPVC fascia, soffit and guttering — plots 1–3',
+        quantityMilli: 1000,
+        unitPricePence: 214_500,
+        vatTreatment: 'standard',
+        categoryId: categoryId('materials'),
+        jobId: jobIds.get('J-1044')!,
+      },
+      {
+        description: 'Fixings and sealant',
+        quantityMilli: 1000,
+        unitPricePence: 18_600,
+        vatTreatment: 'standard',
+        categoryId: categoryId('materials'),
+        jobId: jobIds.get('J-1044')!,
+      },
+    ],
+    userId: ownerId,
+  });
+
   // --- Bank statement -------------------------------------------------------
   const lines: DemoStatementLine[] = [
     // Customer receipts
@@ -656,7 +686,7 @@ export async function seedDemo(db: Database, options: { password: string; today?
     suppliers: DEMO_SUPPLIERS.length + DEMO_SUBCONTRACTORS.length,
     jobs: DEMO_JOBS.length,
     invoices: 5,
-    bills: 4,
+    bills: 5,
     transactions: importResult.imported,
     receipts: receiptsUploaded,
   };

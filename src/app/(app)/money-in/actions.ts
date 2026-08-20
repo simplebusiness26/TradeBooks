@@ -9,7 +9,7 @@ import { customers, invoices } from '@/db/schema';
 import { requirePermission } from '@/lib/auth-context';
 import { failure, runAction, success, type ActionState } from '@/lib/action-result';
 import { parseMoneyInput } from '@/lib/money';
-import { addDays, isIsoDate, todayIso } from '@/lib/dates';
+import { isIsoDate, todayIso } from '@/lib/dates';
 import {
   allocatePayment,
   createInvoice,
@@ -287,10 +287,6 @@ export async function allocateToInvoiceAction(formData: FormData): Promise<void>
     context.user.userId,
   );
   revalidatePath(`/money-in/${invoiceId}`);
-}
-
-export function defaultDueDate(issueDate: string, termsDays: number): string {
-  return addDays(issueDate, termsDays);
 }
 
 function emptyToNull(value: FormDataEntryValue | null): string | null {
