@@ -281,7 +281,11 @@ Honest list, in order of how likely you are to hit them.
    be written against credentials nobody has.
 8. **Bank feed is CSV-only today.** Import is idempotent and every downstream workflow is identical
    whether a line arrived by CSV or a feed.
-9. **Statement import is processed synchronously.** A file of a few thousand lines takes a few
+9. **There are no full-page loading skeletons.** Buttons report their own progress instead. A
+   route-level Suspense boundary was tried and removed: combined with revalidation it left submit
+   buttons stuck on "Saving…" after a successful write. The reasoning is recorded in
+   `ARCHITECTURE.md`.
+10. **Statement import is processed synchronously.** A file of a few thousand lines takes a few
    seconds. The per-row work is already isolated in one function, so moving it to a background
    queue later is a contained change rather than a rewrite.
 

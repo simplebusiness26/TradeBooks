@@ -103,16 +103,12 @@ export function AskQueue({
           <p className="mt-4 text-sm text-ink-500">You do not have permission to answer questions.</p>
         ) : (
           <div className="mt-5 space-y-2">
-            {current.candidates.map((candidate) => (
-              <form
-                key={candidate.id}
-                action={action}
-                onSubmit={() => setAnswered((prev) => new Set(prev).add(current.id))}
-              >
-                <input type="hidden" name="exceptionId" value={current.id} />
-                <input type="hidden" name="resolution" value={JSON.stringify(candidate.action)} />
-                <button
-                  type="submit"
+            {current.candidates.map((candidate) =>
+              // "Take a photo" is not an answer — it is a trip to the camera.
+              candidate.action.kind === 'upload_receipt' ? (
+                <Link
+                  key={candidate.id}
+                  href={`/receipts/new?transactionId=${current.subjectId}`}
                   className="flex w-full min-h-14 items-center justify-between gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
                 >
                   <span className="min-w-0">
@@ -121,10 +117,31 @@ export function AskQueue({
                       <span className="block text-xs text-ink-500">{candidate.sublabel}</span>
                     ) : null}
                   </span>
-                  <Icon name="chevron" className="size-5 shrink-0 text-ink-300" />
-                </button>
-              </form>
-            ))}
+                  <Icon name="camera" className="size-5 shrink-0 text-ink-400" />
+                </Link>
+              ) : (
+                <form
+                  key={candidate.id}
+                  action={action}
+                  onSubmit={() => setAnswered((prev) => new Set(prev).add(current.id))}
+                >
+                  <input type="hidden" name="exceptionId" value={current.id} />
+                  <input type="hidden" name="resolution" value={JSON.stringify(candidate.action)} />
+                  <button
+                    type="submit"
+                    className="flex w-full min-h-14 items-center justify-between gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-ink-900">{candidate.label}</span>
+                      {candidate.sublabel ? (
+                        <span className="block text-xs text-ink-500">{candidate.sublabel}</span>
+                      ) : null}
+                    </span>
+                    <Icon name="chevron" className="size-5 shrink-0 text-ink-300" />
+                  </button>
+                </form>
+              ),
+            )}
 
             <OtherAnswer
               exceptionId={current.id}

@@ -16,3 +16,4 @@ test-results/
 playwright-report/
 .smoke-token
 .smoke-session.ts
+.probe.ts

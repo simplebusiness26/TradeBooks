@@ -17,6 +17,10 @@ import { ValidationError } from '@/lib/errors';
 import { listOpenExceptions } from '@/domain/exceptions';
 import { resolveException } from '@/domain/ask-me';
 import { LocalStorageAdapter } from '@/adapters/storage';
+import { flagMissingReceipts } from '@/domain/documents';
+import { applyCategorisation } from '@/domain/transactions';
+import { categoryIdByCode } from './helpers/db';
+import { resolutionSchema } from '@/domain/ask-me';
 
 let db: Database;
 let fixture: Fixture;
@@ -92,6 +96,68 @@ describe('reading a text receipt', () => {
     );
     const extraction = extractFromText(broken, 'test');
     expect(extraction.confidence).toBeLessThan(60);
+  });
+});
+
+describe('chasing a missing receipt', () => {
+  it('asks about a purchase with no receipt, and every offered answer is one the system accepts', async () => {
+    const materialsId = await categoryIdByCode(db, fixture.companyId, 'materials');
+    const created = await createTransaction(db, {
+      companyId: fixture.companyId,
+      bankAccountId: fixture.bankAccountId,
+      transactionDate: '2026-05-04',
+      direction: 'money_out',
+      amountPence: 45_000,
+      description: 'CARD PURCHASE BUILDERS MERCHANT',
+    });
+    await applyCategorisation(db, fixture.companyId, created.id, {
+      categoryId: materialsId,
+      source: 'user',
+    });
+
+    const raised = await flagMissingReceipts(db, fixture.companyId, { thresholdPence: 10_000 });
+    expect(raised).toBe(1);
+
+    const open = await listOpenExceptions(db, fixture.companyId);
+    const question = open.find((e) => e.type === 'missing_receipt');
+    expect(question).toBeDefined();
+    expect(question!.question).toContain('£450.00');
+
+    // "Take a photo" navigates to the camera; every other answer must be one
+    // the resolver understands, or the owner taps a button that does nothing.
+    for (const candidate of question!.candidates) {
+      if (candidate.action.kind === 'upload_receipt') continue;
+      expect(resolutionSchema.safeParse(candidate.action).success).toBe(true);
+    }
+  });
+
+  it('accepts "there is no receipt" and stops asking', async () => {
+    const created = await createTransaction(db, {
+      companyId: fixture.companyId,
+      bankAccountId: fixture.bankAccountId,
+      transactionDate: '2026-05-04',
+      direction: 'money_out',
+      amountPence: 45_000,
+      description: 'CARD PURCHASE BUILDERS MERCHANT',
+    });
+    expect(created.created).toBe(true);
+
+    await flagMissingReceipts(db, fixture.companyId, { thresholdPence: 10_000 });
+    const [question] = (await listOpenExceptions(db, fixture.companyId)).filter(
+      (e) => e.type === 'missing_receipt',
+    );
+
+    const result = await resolveException(
+      db,
+      fixture.companyId,
+      question!.id,
+      { kind: 'no_receipt' },
+      fixture.ownerId,
+    );
+    expect(result.message).toContain('no receipt');
+
+    const remaining = await listOpenExceptions(db, fixture.companyId);
+    expect(remaining.some((e) => e.id === question!.id)).toBe(false);
   });
 });
 

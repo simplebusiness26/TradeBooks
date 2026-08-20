@@ -259,6 +259,18 @@ reliable than a queue with no worker process to run it. The per-row work is isol
 `autoProcessTransaction` and `processDocument`, so moving it behind a queue later is a contained
 change. That trade-off is recorded in `HANDOVER.md` rather than hidden.
 
+## Loading states
+There is deliberately **no route-level `loading.tsx`**. A Suspense boundary around a segment that
+contains a Server Action form interacts badly with `revalidatePath`: the refresh suspends the
+segment, the action's transition never settles, and `useActionState` stays pending forever — so the
+submit button sticks on "Saving…" and the success message never appears, even though the write
+succeeded. This was caught by the browser suite, reproduced, and confirmed by removing the
+boundary.
+
+Loading feedback instead lives on the control the person is using: every submit button reports its
+own pending state. Pages are server-rendered and their queries are indexed, so navigation is a
+single fast round trip rather than a shell plus a fetch.
+
 ## Deliberate omissions
 - **No HMRC submission.** Preparation only, stated plainly on every screen.
 - **No payment initiation.** Payments are recorded, never made.

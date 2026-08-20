@@ -13,7 +13,7 @@ import {
 import { AUTO_APPLY_THRESHOLD, categorise } from '@/domain/categorisation';
 import { createRule } from '@/domain/rules';
 import { deriveCounterparty, namesMatch, normaliseDescription, similarity } from '@/domain/normalise';
-import { resolveException } from '@/domain/ask-me';
+import { resolutionSchema, resolveException } from '@/domain/ask-me';
 import { listOpenExceptions } from '@/domain/exceptions';
 
 let db: Database;
@@ -169,6 +169,24 @@ describe('the confidence ladder', () => {
     expect(open[0]!.question).toContain('£287.00');
     expect(open[0]!.type).toBe('uncategorised_transaction');
     expect(open[0]!.candidates.length).toBeGreaterThan(1);
+  });
+
+  it('only offers answers the resolver actually understands', async () => {
+    // A candidate whose action the schema rejects is a button that does
+    // nothing when the owner taps it, so every offered action is checked.
+    const id = await addTransaction('FASTER PAYMENT SMITH SERVICES', 28_700);
+    await autoProcessTransaction(db, fixture.companyId, id, { allowAi: false });
+    const open = await listOpenExceptions(db, fixture.companyId);
+    expect(open.length).toBeGreaterThan(0);
+
+    for (const question of open) {
+      expect(question.candidates.length).toBeGreaterThan(0);
+      for (const candidate of question.candidates) {
+        if (candidate.action.kind === 'upload_receipt') continue; // a link, not an answer
+        const parsed = resolutionSchema.safeParse(candidate.action);
+        expect(parsed.success, `${question.type} → ${candidate.label}`).toBe(true);
+      }
+    }
   });
 
   it('does not ask the same question twice', async () => {
