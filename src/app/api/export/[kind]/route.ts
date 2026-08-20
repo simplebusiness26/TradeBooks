@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
-import { requirePermission } from '@/lib/auth-context';
+import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import {
   exportBillsCsv,
@@ -36,7 +36,7 @@ const CSV_EXPORTS = {
  */
 export async function GET(request: Request, { params }: { params: Promise<{ kind: string }> }) {
   try {
-    const context = await requirePermission('exports.run');
+    const context = await requirePermissionOrThrow('exports.run');
     checkRateLimit(`export:${context.company.id}`, RATE_LIMITS.export);
 
     const { kind } = await params;

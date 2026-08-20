@@ -1,9 +1,17 @@
 # TradeBooks V1 — Build Plan
 
-Claude Code should execute this plan in order and update milestone status as work is completed.
+Every milestone below is complete and verified. See `HANDOVER.md` for what was built, what was
+tested, and the short list of things that need the owner.
+
+Verification commands:
+- `npm run typecheck` — TypeScript in strict mode
+- `npm run test` — unit and integration tests against a real PostgreSQL database
+- `npm run build` — production build
+- `npm run test:e2e` — browser journeys on mobile and desktop viewports
+- `npm run verify` — all of the above in order
 
 ## Milestone 0 — Foundation
-Status: NOT STARTED
+Status: COMPLETE
 - initialise app/tooling
 - TypeScript strict mode
 - database + migrations
@@ -18,7 +26,7 @@ Status: NOT STARTED
 Exit: app starts, DB migrates/seeds, demo user signs in, tenant separation proven by tests.
 
 ## Milestone 1 — Canonical bookkeeping records
-Status: NOT STARTED
+Status: COMPLETE
 Build production-shaped CRUD/domain flows for:
 - companies/users
 - customers
@@ -38,7 +46,7 @@ Add audit events for meaningful changes.
 Exit: seeded roofing business can create/edit/view all core records without any external accounting package.
 
 ## Milestone 2 — Import/export foundation
-Status: NOT STARTED
+Status: COMPLETE
 - manual transaction entry
 - CSV transaction import
 - safe duplicate/idempotency handling
@@ -48,7 +56,7 @@ Status: NOT STARTED
 Exit: a business with no integrations can get its bookkeeping data into and out of TradeBooks.
 
 ## Milestone 3 — Owner dashboard
-Status: NOT STARTED
+Status: COMPLETE
 Build plain-English mobile dashboard:
 - cash/bank position from available records
 - money owed
@@ -62,7 +70,7 @@ Build plain-English mobile dashboard:
 Exit: all figures derive from canonical TradeBooks records and calculations are tested.
 
 ## Milestone 4 — Money In
-Status: NOT STARTED
+Status: COMPLETE
 - customer invoices
 - paid/unpaid/part-paid/overdue states
 - payment allocation/matching
@@ -73,7 +81,7 @@ Status: NOT STARTED
 Exit: invoice -> payment -> paid/overdue lifecycle works without external software.
 
 ## Milestone 5 — Money Out + categorisation
-Status: NOT STARTED
+Status: COMPLETE
 - transaction list/detail
 - bills/expenses
 - category assignment
@@ -87,7 +95,7 @@ Status: NOT STARTED
 Exit: known suppliers auto-categorise without AI; ambiguous items generate exceptions.
 
 ## Milestone 6 — Receipts/documents
-Status: NOT STARTED
+Status: COMPLETE
 - mobile camera/file upload UX
 - original preservation
 - storage abstraction + local/mock
@@ -100,7 +108,7 @@ Status: NOT STARTED
 Exit: receipt capture and matching work end-to-end without paid providers.
 
 ## Milestone 7 — Ask Me engine
-Status: NOT STARTED
+Status: COMPLETE
 - persisted exception model
 - queue with priority/status
 - one-tap candidate answers
@@ -112,7 +120,7 @@ Status: NOT STARTED
 Exit: seeded exceptions can be resolved from phone and underlying records update correctly.
 
 ## Milestone 8 — Jobs & profitability
-Status: NOT STARTED
+Status: COMPLETE
 Per job show:
 - customer/address/status
 - quote/expected revenue
@@ -127,7 +135,7 @@ Per job show:
 Exit: profitability calculations are tested and reconcile to linked records.
 
 ## Milestone 9 — CIS workspace
-Status: NOT STARTED
+Status: COMPLETE
 - subcontractor records
 - UTR/reference fields
 - verification metadata
@@ -144,7 +152,7 @@ No autonomous HMRC submission.
 Exit: monthly demo CIS period can be prepared/reviewed with audit history.
 
 ## Milestone 10 — VAT workspace
-Status: NOT STARTED
+Status: COMPLETE
 - VAT registration/settings
 - VAT on sales/purchases from recorded treatments
 - period summary
@@ -157,7 +165,7 @@ Status: NOT STARTED
 Exit: VAT demo period derives from canonical records and tests cover calculations/status logic.
 
 ## Milestone 11 — Accountant/reviewer workspace
-Status: NOT STARTED
+Status: COMPLETE
 - richer transaction/reconciliation view
 - unresolved exceptions
 - missing documents
@@ -170,7 +178,7 @@ Status: NOT STARTED
 Exit: reviewer can inspect/resolve the month without using owner UI.
 
 ## Milestone 12 — Optional integrations layer
-Status: NOT STARTED
+Status: COMPLETE
 Implement interfaces and production-shaped adapters/stubs for:
 - bank/open banking feed
 - Xero
@@ -191,7 +199,7 @@ Rules:
 Exit: each integration has one clear connection point and documented credentials; disconnecting all of them leaves core TradeBooks functional.
 
 ## Milestone 13 — Security, resilience and quality
-Status: NOT STARTED
+Status: COMPLETE
 - tenant isolation tests
 - authorisation tests
 - validation/error handling
@@ -208,7 +216,7 @@ Status: NOT STARTED
 Exit: no known critical/high security or data-integrity defect remains.
 
 ## Milestone 14 — Deployment/handover
-Status: NOT STARTED
+Status: COMPLETE
 - production build passes
 - migration path documented
 - `.env.example`

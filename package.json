@@ -2,7 +2,7 @@
   "name": "tradebooks",
   "version": "1.0.0",
   "private": true,
-  "description": "TradeBooks — AI-assisted bookkeeping and back-office software for UK trades",
+  "description": "TradeBooks \u2014 AI-assisted bookkeeping and back-office software for UK trades",
   "engines": {
     "node": ">=20.11"
   },
@@ -18,7 +18,8 @@
     "db:reset": "tsx src/db/reset.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run typecheck && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run test && npm run build && npm run test:e2e",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.2.0",
+    "@playwright/test": "^1.56.0",
     "@tailwindcss/postcss": "4.1.13",
     "@types/node": "22.10.5",
     "@types/react": "19.2.8",

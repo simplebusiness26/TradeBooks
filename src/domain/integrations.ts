@@ -83,8 +83,10 @@ export async function integrationHealth(db: Database, companyId: string): Promis
         ? 'Consulted only after rules, supplier history and matching have all failed. Its answers are always recorded as suggestions with a confidence and reason, and are never applied without review.'
         : 'Not used. Everything is decided by deterministic rules, supplier history and matching; anything left over becomes a question in Ask Me. No feature is lost.',
       setupSteps: [
-        'Pick a provider and get an API key.',
-        'Set AI_DRIVER and the provider key in the environment.',
+        'Optional. Nothing here is required — leave AI_DRIVER=none and the product is complete.',
+        'Zero cost option: Cloudflare Workers AI has a free allowance. Set AI_DRIVER=cloudflare with CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN.',
+        'Paid option: set AI_DRIVER=anthropic with ANTHROPIC_API_KEY.',
+        'Routine transactions are never sent to a model — only ones no rule, history or match could place.',
         'Suggestions stay capped below the auto-apply threshold, so a person always confirms them.',
       ],
       connectionsSection: '7',

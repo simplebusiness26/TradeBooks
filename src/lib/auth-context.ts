@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { companies, memberships } from '@/db/schema';
@@ -71,7 +72,18 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   };
 });
 
+/**
+ * For pages and server actions: a missing session is not an error to show,
+ * it is a trip to the sign-in screen.
+ */
 export async function requireAuth(): Promise<AuthContext> {
+  const context = await getAuthContext();
+  if (!context) redirect('/sign-in');
+  return context;
+}
+
+/** For API routes, where a redirect would be useless to the caller. */
+export async function requireAuthOrThrow(): Promise<AuthContext> {
   const context = await getAuthContext();
   if (!context) throw new AuthenticationError();
   return context;
@@ -79,6 +91,15 @@ export async function requireAuth(): Promise<AuthContext> {
 
 export async function requirePermission(permission: Permission): Promise<AuthContext> {
   const context = await requireAuth();
+  if (!can(context.role, permission)) {
+    throw new AuthorizationError();
+  }
+  return context;
+}
+
+/** Permission check for API routes: throws rather than redirecting. */
+export async function requirePermissionOrThrow(permission: Permission): Promise<AuthContext> {
+  const context = await requireAuthOrThrow();
   if (!can(context.role, permission)) {
     throw new AuthorizationError();
   }

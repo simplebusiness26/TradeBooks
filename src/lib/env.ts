@@ -29,9 +29,12 @@ const envSchema = z.object({
   OCR_HTTP_ENDPOINT: z.string().optional(),
   OCR_HTTP_API_KEY: z.string().optional(),
 
-  AI_DRIVER: z.enum(['none', 'anthropic']).default('none'),
+  AI_DRIVER: z.enum(['none', 'anthropic', 'cloudflare']).default('none'),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-5'),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_API_TOKEN: z.string().optional(),
+  CLOUDFLARE_AI_MODEL: z.string().default('@cf/meta/llama-3.1-8b-instruct'),
 
   EMAIL_DRIVER: z.enum(['log', 'smtp']).default('log'),
   EMAIL_FROM: z.string().default('TradeBooks <no-reply@tradebooks.local>'),
