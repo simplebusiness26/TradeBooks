@@ -45,9 +45,12 @@ const envSchema = z.object({
 
   BANK_FEED_DRIVER: z.enum(['none', 'truelayer']).default('none'),
   TRUELAYER_ENV: z.enum(['sandbox', 'live']).default('sandbox'),
-  TRUELAYER_CLIENT_ID: z.string().optional(),
-  TRUELAYER_CLIENT_SECRET: z.string().optional(),
-  TRUELAYER_REDIRECT_URI: z.string().url().optional(),
+  // Trim integration credentials because copying from mobile password/secret
+  // views can introduce leading/trailing whitespace or a newline. Those are
+  // invisible in dashboards but make OAuth client authentication fail.
+  TRUELAYER_CLIENT_ID: z.string().trim().optional(),
+  TRUELAYER_CLIENT_SECRET: z.string().trim().optional(),
+  TRUELAYER_REDIRECT_URI: z.string().trim().url().optional(),
 
   XERO_CLIENT_ID: z.string().optional(),
   XERO_CLIENT_SECRET: z.string().optional(),
