@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { bankConnections } from '@/db/schema';
 import { getBankFeed } from '@/adapters/bank';
@@ -9,17 +10,21 @@ import { env } from '@/lib/env';
 export const dynamic = 'force-dynamic';
 const BANK_STATE_COOKIE = 'tb_bank_state';
 
+function appUrl(path: string): URL {
+  return new URL(path, env().APP_BASE_URL);
+}
+
 export async function GET(request: NextRequest) {
   const context = await requirePermissionOrThrow('company.settings');
   const feed = getBankFeed();
   if (!feed.available) {
-    return NextResponse.redirect(new URL('/settings/accounts?bank=not-configured', request.url));
+    return NextResponse.redirect(appUrl('/settings/accounts?bank=not-configured'));
   }
 
   const stateNonce = randomBytes(24).toString('base64url');
   const returnUri = env().TRUELAYER_REDIRECT_URI;
   if (!returnUri) {
-    return NextResponse.redirect(new URL('/settings/accounts?bank=not-configured', request.url));
+    return NextResponse.redirect(appUrl('/settings/accounts?bank=not-configured'));
   }
 
   try {
@@ -51,6 +56,6 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Open Banking connection failed', error);
-    return NextResponse.redirect(new URL('/settings/accounts?bank=connect-error', request.url));
+    return NextResponse.redirect(appUrl('/settings/accounts?bank=connect-error'));
   }
 }
