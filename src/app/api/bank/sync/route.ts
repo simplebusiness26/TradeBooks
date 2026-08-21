@@ -1,9 +1,11 @@
 import { and, eq } from 'drizzle-orm';
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { bankConnections } from '@/db/schema';
 import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { syncBankConnection } from '@/domain/bank-sync';
+import { env } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const url = new URL('/settings/accounts', request.url);
+  const url = new URL('/settings/accounts', env().APP_BASE_URL);
   url.searchParams.set('bank', errors > 0 ? 'sync-warning' : 'synced');
   url.searchParams.set('imported', String(imported));
   url.searchParams.set('duplicates', String(duplicates));
