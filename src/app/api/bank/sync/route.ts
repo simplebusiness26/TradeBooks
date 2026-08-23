@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { bankConnections } from '@/db/schema';
+import { getConfiguredBankFeed } from '@/adapters/bank/provider';
 import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { syncBankConnection } from '@/domain/bank-sync';
 import { env } from '@/lib/env';
@@ -11,15 +12,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const context = await requirePermissionOrThrow('company.settings');
+  const feed = getConfiguredBankFeed();
   const connections = await db
     .select()
     .from(bankConnections)
-    .where(
-      and(
-        eq(bankConnections.companyId, context.company.id),
-        eq(bankConnections.provider, 'truelayer'),
-      ),
-    );
+    .where(and(eq(bankConnections.companyId, context.company.id), eq(bankConnections.provider, feed.name)));
 
   let imported = 0;
   let duplicates = 0;
@@ -31,6 +28,7 @@ export async function POST(request: NextRequest) {
         companyId: context.company.id,
         connectionRowId: connection.id,
         externalConnectionId: connection.externalConnectionId,
+        provider: connection.provider,
         userId: context.user.userId,
         userIp: request.headers.get('x-forwarded-for'),
       });
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
       errors += result.errors;
     } catch (error) {
       errors += 1;
-      console.error('Manual Open Banking sync failed', error);
+      console.error(`${connection.provider} Open Banking sync failed`, error);
     }
   }
 
