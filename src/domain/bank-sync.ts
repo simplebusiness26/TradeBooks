@@ -6,7 +6,7 @@ import {
   bankFeedAccounts,
   importBatches,
 } from '@/db/schema';
-import { getBankFeed } from '@/adapters/bank';
+import { getConfiguredBankFeed } from '@/adapters/bank/provider';
 import { autoProcessTransaction, createTransaction } from '@/domain/transactions';
 import type { IsoDate } from '@/lib/dates';
 
@@ -14,9 +14,13 @@ export async function linkBankConnection(input: {
   companyId: string;
   connectionRowId: string;
   externalConnectionId: string;
+  provider: string;
   userIp?: string | null;
 }): Promise<number> {
-  const feed = getBankFeed();
+  const feed = getConfiguredBankFeed();
+  if (feed.name !== input.provider) {
+    throw new Error(`Configured bank provider ${feed.name} does not match connection provider ${input.provider}.`);
+  }
   const accounts = await feed.listAccounts(input.externalConnectionId, input.userIp);
   let linked = 0;
 
@@ -27,7 +31,7 @@ export async function linkBankConnection(input: {
       .where(
         and(
           eq(bankAccounts.companyId, input.companyId),
-          eq(bankAccounts.feedProvider, 'truelayer'),
+          eq(bankAccounts.feedProvider, input.provider),
           eq(bankAccounts.feedExternalId, account.externalId),
         ),
       )
@@ -57,7 +61,7 @@ export async function linkBankConnection(input: {
           sortCode: account.sortCode ?? null,
           accountNumberLast4: account.accountNumberLast4 ?? null,
           currency: account.currency,
-          feedProvider: 'truelayer',
+          feedProvider: input.provider,
           feedExternalId: account.externalId,
           openingBalancePence: 0,
         })
@@ -81,12 +85,7 @@ export async function linkBankConnection(input: {
   await db
     .update(bankConnections)
     .set({ status: 'connected', updatedAt: new Date() })
-    .where(
-      and(
-        eq(bankConnections.companyId, input.companyId),
-        eq(bankConnections.id, input.connectionRowId),
-      ),
-    );
+    .where(and(eq(bankConnections.companyId, input.companyId), eq(bankConnections.id, input.connectionRowId)));
   return linked;
 }
 
@@ -94,6 +93,7 @@ export async function syncBankConnection(input: {
   companyId: string;
   connectionRowId: string;
   externalConnectionId: string;
+  provider: string;
   userId?: string | null;
   userIp?: string | null;
 }): Promise<{ imported: number; duplicates: number; errors: number }> {
@@ -117,7 +117,10 @@ export async function syncBankConnection(input: {
   let imported = 0;
   let duplicates = 0;
   let errors = 0;
-  const feed = getBankFeed();
+  const feed = getConfiguredBankFeed();
+  if (feed.name !== input.provider) {
+    throw new Error(`Configured bank provider ${feed.name} does not match connection provider ${input.provider}.`);
+  }
   const now = new Date();
 
   for (const mapping of mappings) {
@@ -134,7 +137,7 @@ export async function syncBankConnection(input: {
       );
     } catch (error) {
       errors += 1;
-      console.error('Bank transaction sync failed', error);
+      console.error(`${input.provider} transaction sync failed`, error);
       continue;
     }
 
@@ -143,7 +146,7 @@ export async function syncBankConnection(input: {
       .values({
         companyId: input.companyId,
         kind: 'bank_feed',
-        filename: `TrueLayer ${from} to ${to}`,
+        filename: `${providerLabel(input.provider)} ${from} to ${to}`,
         bankAccountId: mapping.bankAccountId,
         rowCount: feedTransactions.length,
         createdByUserId: input.userId ?? null,
@@ -177,7 +180,6 @@ export async function syncBankConnection(input: {
         try {
           await autoProcessTransaction(db, input.companyId, result.id);
         } catch (error) {
-          // The transaction is still safely imported and visible in Ask Me.
           console.error('Automatic categorisation failed for bank transaction', error);
         }
       } catch (error) {
@@ -210,14 +212,15 @@ export async function syncBankConnection(input: {
   await db
     .update(bankConnections)
     .set({ status: errors > 0 ? 'connected_with_errors' : 'connected', lastSyncedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(bankConnections.companyId, input.companyId),
-        eq(bankConnections.id, input.connectionRowId),
-      ),
-    );
+    .where(and(eq(bankConnections.companyId, input.companyId), eq(bankConnections.id, input.connectionRowId)));
 
   return { imported, duplicates, errors };
+}
+
+function providerLabel(provider: string): string {
+  if (provider === 'gocardless') return 'GoCardless';
+  if (provider === 'truelayer') return 'TrueLayer';
+  return provider;
 }
 
 function syncFromDate(lastSyncedAt: Date | null, now: Date): IsoDate {

@@ -4,7 +4,7 @@ import { db } from '@/db/client';
 import { bankAccounts, bankConnections, transactions } from '@/db/schema';
 import { requirePermission } from '@/lib/auth-context';
 import { formatDate } from '@/lib/dates';
-import { getBankFeed } from '@/adapters/bank';
+import { getConfiguredBankFeed } from '@/adapters/bank/provider';
 import { Badge, ButtonLink, Card, Money, Notice } from '@/components/ui/primitives';
 import { PageHeader } from '@/components/ui/page';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -14,6 +14,12 @@ import { AddAccountForm } from './form';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Bank accounts — TradeBooks' };
 
+function providerLabel(name: string): string {
+  if (name === 'gocardless') return 'GoCardless';
+  if (name === 'truelayer') return 'TrueLayer';
+  return 'Open Banking';
+}
+
 export default async function AccountsPage({
   searchParams,
 }: {
@@ -21,6 +27,8 @@ export default async function AccountsPage({
 }) {
   const { company } = await requirePermission('company.settings');
   const params = await searchParams;
+  const feed = getConfiguredBankFeed();
+  const provider = providerLabel(feed.name);
 
   const [rows, connections] = await Promise.all([
     db
@@ -42,11 +50,12 @@ export default async function AccountsPage({
       .orderBy(bankConnections.createdAt),
   ]);
 
-  const connected = connections.some((connection) =>
+  const activeConnections = connections.filter((connection) => connection.provider === feed.name);
+  const connected = activeConnections.some((connection) =>
     ['connected', 'connected_with_errors'].includes(connection.status),
   );
-  const bankFeedAvailable = getBankFeed().available;
-  const latestSync = connections
+  const bankFeedAvailable = feed.available;
+  const latestSync = activeConnections
     .map((connection) => connection.lastSyncedAt)
     .filter((value): value is Date => value instanceof Date)
     .sort((a, b) => b.getTime() - a.getTime())[0];
@@ -60,19 +69,15 @@ export default async function AccountsPage({
         description="Connect the business bank once and TradeBooks can keep the transactions up to date."
         action={
           <div className="flex flex-wrap gap-2">
-            {!connected ? (
-              <ButtonLink href="/api/bank/connect">Connect bank</ButtonLink>
-            ) : null}
-            <ButtonLink href="/money-out/import" variant="secondary">
-              Import a statement
-            </ButtonLink>
+            {!connected ? <ButtonLink href="/api/bank/connect">Connect bank</ButtonLink> : null}
+            <ButtonLink href="/money-out/import" variant="secondary">Import a statement</ButtonLink>
           </div>
         }
       />
 
       {params.bank === 'connected' ? (
         <Notice tone="good" title="Bank connected">
-          TradeBooks connected the bank and imported {params.imported ?? '0'} new transaction{params.imported === '1' ? '' : 's'}.
+          TradeBooks connected through {provider} and imported {params.imported ?? '0'} new transaction{params.imported === '1' ? '' : 's'}.
         </Notice>
       ) : null}
       {params.bank === 'synced' ? (
@@ -82,15 +87,15 @@ export default async function AccountsPage({
       ) : null}
       {params.bank === 'sync-warning' || params.bank === 'sync-error' || params.bank === 'connect-error' ? (
         <Notice tone="warn" title="Bank connection needs another try">
-          Your existing bookkeeping is safe. Try connecting or syncing again; if it still fails, check the TrueLayer connection settings.
+          Your existing bookkeeping is safe. Try connecting or syncing again; if it still fails, check the {provider} connection settings.
         </Notice>
       ) : null}
       {params.bank === 'not-configured' ? (
         <Notice tone="warn" title="Open Banking is not switched on yet">
-          The TrueLayer credentials are present only when the bank-feed driver is enabled on the server.
+          Add the credentials for the selected bank-feed provider on the server, then try again.
         </Notice>
       ) : null}
-      {params.bank === 'invalid-return' ? (
+      {params.bank === 'invalid-return' || params.bank === 'provider-mismatch' ? (
         <Notice tone="warn" title="That bank return could not be verified">
           Start again with the Connect bank button so TradeBooks can securely match the bank approval to this business.
         </Notice>
@@ -100,7 +105,7 @@ export default async function AccountsPage({
         <Card className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-ink-900">Automatic bank feed connected</p>
+              <p className="font-semibold text-ink-900">Automatic bank feed connected · {provider}</p>
               <p className="mt-1 text-sm text-ink-500">
                 {latestSync ? `Last synced ${latestSync.toLocaleString('en-GB')}` : 'Ready for the first sync.'}
               </p>
@@ -112,11 +117,11 @@ export default async function AccountsPage({
         </Card>
       ) : !bankFeedAvailable ? (
         <Notice tone="info" title="Bank feed ready to enable">
-          TradeBooks can still use CSV statements. Once the TrueLayer bank-feed driver is enabled, the Connect bank button will start the secure bank authorisation flow.
+          TradeBooks can still use CSV statements. Once the selected Open Banking credentials are added, Connect bank will start secure bank authorisation.
         </Notice>
       ) : (
-        <Notice tone="info" title="Connect securely through Open Banking">
-          Tap Connect bank, choose the bank, approve access on the bank&apos;s secure screen, and you will return here. TradeBooks never receives the bank password.
+        <Notice tone="info" title={`Connect securely through ${provider}`}>
+          Tap Connect bank, approve access on the secure bank screen, and you will return here. TradeBooks never receives the bank password.
         </Notice>
       )}
 
@@ -143,11 +148,7 @@ export default async function AccountsPage({
                   </p>
                   <p className="mt-2 flex flex-wrap gap-2">
                     {account.isArchived ? <Badge tone="neutral">Archived</Badge> : null}
-                    {account.feedProvider ? (
-                      <Badge tone="info">Open Banking connected</Badge>
-                    ) : (
-                      <Badge tone="neutral">Manual / CSV</Badge>
-                    )}
+                    {account.feedProvider ? <Badge tone="info">{providerLabel(account.feedProvider)} connected</Badge> : <Badge tone="neutral">Manual / CSV</Badge>}
                   </p>
                 </div>
                 <div className="text-right">
@@ -159,9 +160,7 @@ export default async function AccountsPage({
               {!account.isArchived ? (
                 <form action={archiveAccountAction} className="mt-4">
                   <input type="hidden" name="accountId" value={account.id} />
-                  <SubmitButton variant="ghost" pendingLabel="Archiving…">
-                    Archive this account
-                  </SubmitButton>
+                  <SubmitButton variant="ghost" pendingLabel="Archiving…">Archive this account</SubmitButton>
                 </form>
               ) : null}
             </Card>

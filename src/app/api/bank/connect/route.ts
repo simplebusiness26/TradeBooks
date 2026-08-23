@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { bankConnections } from '@/db/schema';
-import { getBankFeed } from '@/adapters/bank';
+import { configuredBankRedirectUri, getConfiguredBankFeed } from '@/adapters/bank/provider';
 import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { env } from '@/lib/env';
 
@@ -16,13 +16,13 @@ function appUrl(path: string): URL {
 
 export async function GET(request: NextRequest) {
   const context = await requirePermissionOrThrow('company.settings');
-  const feed = getBankFeed();
+  const feed = getConfiguredBankFeed();
   if (!feed.available) {
     return NextResponse.redirect(appUrl('/settings/accounts?bank=not-configured'));
   }
 
   const stateNonce = randomBytes(24).toString('base64url');
-  const returnUri = env().TRUELAYER_REDIRECT_URI;
+  const returnUri = configuredBankRedirectUri();
   if (!returnUri) {
     return NextResponse.redirect(appUrl('/settings/accounts?bank=not-configured'));
   }
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     await db.insert(bankConnections).values({
       companyId: context.company.id,
-      provider: 'truelayer',
+      provider: feed.name,
       externalConnectionId: created.connectionId,
       stateNonce,
       status: created.status,
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     });
     return response;
   } catch (error) {
-    console.error('Open Banking connection failed', error);
+    console.error(`${feed.name} Open Banking connection failed`, error);
     return NextResponse.redirect(appUrl('/settings/accounts?bank=connect-error'));
   }
 }

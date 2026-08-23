@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { bankConnections } from '@/db/schema';
+import { getConfiguredBankFeed } from '@/adapters/bank/provider';
 import { requirePermissionOrThrow } from '@/lib/auth-context';
 import { syncBankConnection } from '@/domain/bank-sync';
 import { env } from '@/lib/env';
@@ -24,17 +25,18 @@ export async function GET(request: NextRequest) {
   const rows = await db
     .select()
     .from(bankConnections)
-    .where(
-      and(
-        eq(bankConnections.companyId, context.company.id),
-        eq(bankConnections.stateNonce, state),
-        eq(bankConnections.provider, 'truelayer'),
-      ),
-    )
+    .where(and(eq(bankConnections.companyId, context.company.id), eq(bankConnections.stateNonce, state)))
     .limit(1);
   const connection = rows[0];
   if (!connection) {
     const response = NextResponse.redirect(appUrl('/settings/accounts?bank=invalid-return'));
+    response.cookies.delete(BANK_STATE_COOKIE);
+    return response;
+  }
+
+  const feed = getConfiguredBankFeed();
+  if (connection.provider !== feed.name) {
+    const response = NextResponse.redirect(appUrl('/settings/accounts?bank=provider-mismatch'));
     response.cookies.delete(BANK_STATE_COOKIE);
     return response;
   }
@@ -44,6 +46,7 @@ export async function GET(request: NextRequest) {
       companyId: context.company.id,
       connectionRowId: connection.id,
       externalConnectionId: connection.externalConnectionId,
+      provider: connection.provider,
       userId: context.user.userId,
       userIp: request.headers.get('x-forwarded-for'),
     });
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete(BANK_STATE_COOKIE);
     return response;
   } catch (error) {
-    console.error('Open Banking callback sync failed', error);
+    console.error(`${connection.provider} Open Banking callback sync failed`, error);
     await db
       .update(bankConnections)
       .set({ status: 'error', updatedAt: new Date() })
