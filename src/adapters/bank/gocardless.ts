@@ -1,6 +1,5 @@
 import type {
   BankFeedAdapter,
-  BankInstitution,
   CreateConnectionInput,
   CreatedConnection,
   FeedAccount,
@@ -10,6 +9,7 @@ import type {
 type GoCardlessConfig = {
   secretId?: string;
   secretKey?: string;
+  institutionId?: string;
 };
 
 type TokenCache = {
@@ -33,39 +33,13 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
     return Boolean(this.config.secretId && this.config.secretKey);
   }
 
-  async listInstitutions(country = 'GB'): Promise<BankInstitution[]> {
-    const response = await fetch(`${API_BASE}/institutions/?country=${encodeURIComponent(country.toLowerCase())}`, {
-      headers: await this.headers(),
-      cache: 'no-store',
-    });
-    const payload = await readJsonValue(response);
-    if (!response.ok) throw providerFailure('GoCardless institution request failed', response.status, payload);
-    if (!Array.isArray(payload)) return [];
-
-    return payload.flatMap((value) => {
-      const item = asRecord(value);
-      const id = asString(item?.id);
-      const name = asString(item?.name);
-      if (!id || !name) return [];
-      return [{
-        id,
-        name,
-        logoUrl: asString(item?.logo),
-        transactionHistoryDays: asInteger(item?.transaction_total_days),
-      } satisfies BankInstitution];
-    });
-  }
-
   async createConnection(input: CreateConnectionInput): Promise<CreatedConnection> {
     if (!this.available) throw new Error('The GoCardless bank feed is not configured.');
-    const institutionId = input.institutionId || SANDBOX_INSTITUTION_ID;
+    const institutionId = this.config.institutionId || SANDBOX_INSTITUTION_ID;
 
     const response = await fetch(`${API_BASE}/requisitions/`, {
       method: 'POST',
-      headers: {
-        ...(await this.headers()),
-        'content-type': 'application/json',
-      },
+      headers: { ...(await this.headers()), 'content-type': 'application/json' },
       body: JSON.stringify({
         redirect: input.returnUri,
         institution_id: institutionId,
@@ -101,21 +75,13 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
     const accounts: FeedAccount[] = [];
     for (const accountId of accountIds) {
       const [detailsResponse, balancesResponse] = await Promise.all([
-        fetch(`${API_BASE}/accounts/${encodeURIComponent(accountId)}/details/`, {
-          headers: await this.headers(), cache: 'no-store',
-        }),
-        fetch(`${API_BASE}/accounts/${encodeURIComponent(accountId)}/balances/`, {
-          headers: await this.headers(), cache: 'no-store',
-        }),
+        fetch(`${API_BASE}/accounts/${encodeURIComponent(accountId)}/details/`, { headers: await this.headers(), cache: 'no-store' }),
+        fetch(`${API_BASE}/accounts/${encodeURIComponent(accountId)}/balances/`, { headers: await this.headers(), cache: 'no-store' }),
       ]);
       const detailsPayload = await readJsonValue(detailsResponse);
       const balancesPayload = await readJsonValue(balancesResponse);
-      if (!detailsResponse.ok) {
-        throw providerFailure('GoCardless account details request failed', detailsResponse.status, detailsPayload);
-      }
-      if (!balancesResponse.ok) {
-        throw providerFailure('GoCardless balance request failed', balancesResponse.status, balancesPayload);
-      }
+      if (!detailsResponse.ok) throw providerFailure('GoCardless account details request failed', detailsResponse.status, detailsPayload);
+      if (!balancesResponse.ok) throw providerFailure('GoCardless balance request failed', balancesResponse.status, balancesPayload);
 
       const detailsRoot = asRecord(detailsPayload) ?? {};
       const details = asRecord(detailsRoot.account) ?? detailsRoot;
@@ -125,13 +91,12 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
       const balanceAmount = asRecord(preferredBalance?.balanceAmount);
       const iban = asString(details.iban);
       const accountNumber = asString(details.bban) ?? asString(details.resourceId);
-      const currency = asString(details.currency) ?? asString(balanceAmount?.currency) ?? 'GBP';
 
       accounts.push({
         externalId: accountId,
         name: asString(details.name) ?? asString(details.product) ?? asString(details.ownerName) ?? 'Connected bank account',
         accountType: normaliseAccountType(asString(details.cashAccountType) ?? asString(details.product)),
-        currency,
+        currency: asString(details.currency) ?? asString(balanceAmount?.currency) ?? 'GBP',
         sortCode: extractSortCode(accountNumber),
         accountNumberLast4: extractLast4(accountNumber ?? iban),
         balancePence: decimalToPence(asString(balanceAmount?.amount)),
@@ -158,26 +123,17 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
     const booked = asArray(transactions.booked).map(asRecord).filter(Boolean) as Record<string, unknown>[];
 
     return booked.flatMap((item, index) => {
-      const amountObject = asRecord(item.transactionAmount);
-      const amountPence = decimalToPence(asString(amountObject?.amount));
+      const amount = decimalToPence(asString(asRecord(item.transactionAmount)?.amount));
       const date = asString(item.bookingDate) ?? asString(item.valueDate);
-      if (amountPence === null || !date) return [];
-      const externalId =
-        asString(item.transactionId) ??
-        asString(item.internalTransactionId) ??
-        `${accountExternalId}:${date}:${amountPence}:${index}`;
+      if (amount === null || !date) return [];
+      const externalId = asString(item.transactionId) ?? asString(item.internalTransactionId) ?? `${accountExternalId}:${date}:${amount}:${index}`;
       const counterparty = asString(item.creditorName) ?? asString(item.debtorName);
-      const description =
-        asString(item.remittanceInformationUnstructured) ??
-        asString(item.additionalInformation) ??
-        counterparty ??
-        'Bank transaction';
-      const balanceAfter = asRecord(item.balanceAfterTransaction);
-      const balanceAmount = asRecord(balanceAfter?.balanceAmount);
+      const description = asString(item.remittanceInformationUnstructured) ?? asString(item.additionalInformation) ?? counterparty ?? 'Bank transaction';
+      const balanceAmount = asRecord(asRecord(item.balanceAfterTransaction)?.balanceAmount);
       return [{
         externalId,
         date: date.slice(0, 10),
-        amountPence,
+        amountPence: amount,
         description,
         counterparty,
         reference: asString(item.endToEndId) ?? asString(item.remittanceInformationUnstructured),
@@ -188,10 +144,7 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
   }
 
   private async headers(): Promise<Record<string, string>> {
-    return {
-      authorization: `Bearer ${await this.accessToken()}`,
-      accept: 'application/json',
-    };
+    return { authorization: `Bearer ${await this.accessToken()}`, accept: 'application/json' };
   }
 
   private async accessToken(): Promise<string> {
@@ -199,21 +152,11 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
     if (this.token?.access && this.token.accessExpiresAt > Date.now() + 60_000) return this.token.access;
 
     if (this.token?.refresh && this.token.refreshExpiresAt > Date.now() + 60_000) {
-      const refreshed = await fetch(`${API_BASE}/token/refresh/`, {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify({ refresh: this.token.refresh }),
-        cache: 'no-store',
-      });
-      const refreshedPayload = await readJsonValue(refreshed);
-      if (refreshed.ok) {
-        const object = asRecord(refreshedPayload) ?? {};
-        const access = asString(object.access);
-        if (access) {
-          this.token.access = access;
-          this.token.accessExpiresAt = Date.now() + (asInteger(object.access_expires) ?? 86_400) * 1000;
-          return access;
-        }
+      const refreshed = await refreshAccess(this.token.refresh);
+      if (refreshed) {
+        this.token.access = refreshed.access;
+        this.token.accessExpiresAt = Date.now() + refreshed.expiresIn * 1000;
+        return refreshed.access;
       }
     }
 
@@ -228,27 +171,30 @@ export class GoCardlessBankFeedAdapter implements BankFeedAdapter {
     const object = asRecord(payload) ?? {};
     const refresh = asString(object.refresh);
     if (!refresh) throw new Error('GoCardless did not return a refresh token.');
-
-    const refreshed = await fetch(`${API_BASE}/token/refresh/`, {
-      method: 'POST',
-      headers: { accept: 'application/json', 'content-type': 'application/json' },
-      body: JSON.stringify({ refresh }),
-      cache: 'no-store',
-    });
-    const refreshedPayload = await readJsonValue(refreshed);
-    if (!refreshed.ok) throw providerFailure('GoCardless access-token request failed', refreshed.status, refreshedPayload);
-    const refreshedObject = asRecord(refreshedPayload) ?? {};
-    const access = asString(refreshedObject.access);
-    if (!access) throw new Error('GoCardless did not return an access token.');
+    const refreshed = await refreshAccess(refresh);
+    if (!refreshed) throw new Error('GoCardless did not return an access token.');
 
     this.token = {
-      access,
-      accessExpiresAt: Date.now() + (asInteger(refreshedObject.access_expires) ?? 86_400) * 1000,
+      access: refreshed.access,
+      accessExpiresAt: Date.now() + refreshed.expiresIn * 1000,
       refresh,
       refreshExpiresAt: Date.now() + (asInteger(object.refresh_expires) ?? 2_592_000) * 1000,
     };
-    return access;
+    return refreshed.access;
   }
+}
+
+async function refreshAccess(refresh: string): Promise<{ access: string; expiresIn: number } | null> {
+  const response = await fetch(`${API_BASE}/token/refresh/`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ refresh }),
+    cache: 'no-store',
+  });
+  if (!response.ok) return null;
+  const object = asRecord(await readJsonValue(response)) ?? {};
+  const access = asString(object.access);
+  return access ? { access, expiresIn: asInteger(object.access_expires) ?? 86_400 } : null;
 }
 
 function normaliseAccountType(value: string | null): string {
@@ -261,30 +207,22 @@ function normaliseAccountType(value: string | null): string {
 function decimalToPence(value: string | null): number | null {
   if (!value || !/^-?\d+(?:\.\d+)?$/.test(value)) return null;
   const negative = value.startsWith('-');
-  const unsigned = negative ? value.slice(1) : value;
-  const [whole = '0', fraction = ''] = unsigned.split('.');
+  const [whole = '0', fraction = ''] = (negative ? value.slice(1) : value).split('.');
   const pence = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
   return negative ? -pence : pence;
 }
-
 function extractSortCode(value: string | null): string | null {
-  if (!value) return null;
-  const digits = value.replace(/\D/g, '');
+  const digits = value?.replace(/\D/g, '') ?? '';
   if (digits.length < 14) return null;
   const sort = digits.slice(-14, -8);
-  return sort.length === 6 ? `${sort.slice(0, 2)}-${sort.slice(2, 4)}-${sort.slice(4, 6)}` : null;
+  return `${sort.slice(0, 2)}-${sort.slice(2, 4)}-${sort.slice(4, 6)}`;
 }
-
 function extractLast4(value: string | null): string | null {
-  if (!value) return null;
-  const alphanumeric = value.replace(/[^a-zA-Z0-9]/g, '');
-  return alphanumeric.length >= 4 ? alphanumeric.slice(-4) : null;
+  const clean = value?.replace(/[^a-zA-Z0-9]/g, '') ?? '';
+  return clean.length >= 4 ? clean.slice(-4) : null;
 }
-
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 function asArray(value: unknown): unknown[] { return Array.isArray(value) ? value : []; }
 function asString(value: unknown): string | null { return typeof value === 'string' && value.length > 0 ? value : null; }
@@ -293,9 +231,7 @@ function asInteger(value: unknown): number | null {
   if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
   return null;
 }
-async function readJsonValue(response: Response): Promise<unknown> {
-  return response.json().catch(() => ({}));
-}
+async function readJsonValue(response: Response): Promise<unknown> { return response.json().catch(() => ({})); }
 function providerFailure(prefix: string, status: number, payload: unknown): Error {
   const object = asRecord(payload) ?? {};
   const detail = asString(object.detail) ?? asString(object.summary) ?? asString(object.message);
