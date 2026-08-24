@@ -1,0 +1,30 @@
+name: Pilot hardening
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Production dependency audit
+        run: npm audit --omit=dev --json > npm-audit-production.json || true
+      - name: Full dependency audit
+        run: npm audit --json > npm-audit-full.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            npm-audit-production.json
+            npm-audit-full.json
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
